@@ -5,3 +5,4 @@ kernel/kernel.bin
 user/user.debug
 user/user.bin
 kernel/kbd_linux/keymap.c
+.vscode

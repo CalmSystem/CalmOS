@@ -3,8 +3,12 @@
 #include "stdint.h"
 
 void console_putbytes(char *chaine, int32_t taille);
+void console_putbytes_at(char *chaine, int32_t taille, uint8_t col, uint8_t lig);
 void console_set_foreground(uint8_t c);
 void console_set_background(uint8_t c);
+
+#define CONSOLE_COL 80
+#define CONSOLE_LIG 25
 
 #define CONSOLE_BLACK 0
 #define CONSOLE_BLUE 1

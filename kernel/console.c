@@ -6,8 +6,6 @@
 uint16_t* const DISPLAY_START = (uint16_t*)0xB8000;
 const uint16_t CURSOR_PORT_CMD = 0x3D4;
 const uint16_t CURSOR_PORT_DATA = 0x3D5;
-const uint8_t NB_COL = 80;
-const uint8_t NB_LIG = 25;
 
 struct state_t
 {
@@ -18,7 +16,7 @@ struct state_t state = {0, 0, CONSOLE_WHITE, CONSOLE_BLACK};
 
 uint16_t* char_addr(uint8_t col, uint8_t lig)
 {
-  return DISPLAY_START + (lig * NB_COL + col);
+  return DISPLAY_START + (lig * CONSOLE_COL + col);
 }
 
 uint16_t pack_char(uint8_t text, uint8_t ct, uint8_t cf)
@@ -29,7 +27,7 @@ uint16_t pack_char(uint8_t text, uint8_t ct, uint8_t cf)
 }
 void put_cursor(uint8_t col, uint8_t lig)
 {
-  const uint16_t at = col + lig * NB_COL;
+  const uint16_t at = col + lig * CONSOLE_COL;
   outb(0x0F, CURSOR_PORT_CMD);
   outb(at, CURSOR_PORT_DATA);
   outb(0x0E, CURSOR_PORT_CMD);
@@ -39,30 +37,30 @@ void put_cursor(uint8_t col, uint8_t lig)
 void screen_clean()
 {
   const uint16_t clean = pack_char(' ', CONSOLE_WHITE, CONSOLE_BLACK);
-  for (uint16_t i = 0; i < NB_LIG * NB_COL; i++) {
+  for (uint16_t i = 0; i < CONSOLE_LIG * CONSOLE_COL; i++) {
     *(DISPLAY_START + i) = clean;
   }
 }
 void screen_scroll()
 {
-  const uint16_t bottom = (NB_LIG - 1) * NB_COL;
-  memmove(DISPLAY_START, DISPLAY_START + NB_COL, sizeof(uint16_t) * bottom);
+  const uint16_t bottom = (CONSOLE_LIG - 1) * CONSOLE_COL;
+  memmove(DISPLAY_START, DISPLAY_START + CONSOLE_COL, sizeof(uint16_t) * bottom);
 
   const uint16_t clean = pack_char(' ', CONSOLE_WHITE, CONSOLE_BLACK);
-  for (uint16_t i = 0; i < NB_COL; i++) {
+  for (uint16_t i = 0; i < CONSOLE_COL; i++) {
     *(DISPLAY_START + bottom + i) = clean;
   }
 }
 
 void wrap_cursor()
 {
-  if (state.col >= NB_COL) {
+  if (state.col >= CONSOLE_COL) {
     state.col = 0;
     state.lig++;
   }
-  if (state.lig >= NB_LIG) {
+  if (state.lig >= CONSOLE_LIG) {
     screen_scroll();
-    state.lig = NB_LIG - 1;
+    state.lig = CONSOLE_LIG - 1;
   }
 }
 void handle_char(char c)
@@ -75,7 +73,7 @@ void handle_char(char c)
 
   case 9:
     state.lig = ((state.lig / 8) + 1) * 8;
-    if (state.lig >= NB_LIG) state.lig = 79;
+    if (state.lig >= CONSOLE_LIG) state.lig = 79;
     break;
 
   case 10:
@@ -104,7 +102,6 @@ void handle_char(char c)
     break;
   }
   }
-  put_cursor(state.col, state.lig);
 }
 
 void console_putbytes(char *chaine, int32_t taille)
@@ -112,6 +109,18 @@ void console_putbytes(char *chaine, int32_t taille)
   for (int32_t i = 0; i < taille; i++) {
     handle_char(chaine[i]);
   }
+  put_cursor(state.col, state.lig);
+}
+void console_putbytes_at(char *chaine, int32_t taille, uint8_t col, uint8_t lig)
+{
+  struct state_t save = state;
+  state.col = col;
+  state.lig = lig;
+  state.ct = CONSOLE_WHITE;
+  state.cf = CONSOLE_BLACK;
+  console_putbytes(chaine, taille);
+  state = save;
+  put_cursor(state.col, state.lig);
 }
 void console_set_foreground(uint8_t c) { state.ct = c; }
 void console_set_background(uint8_t c) { state.cf = c; }
