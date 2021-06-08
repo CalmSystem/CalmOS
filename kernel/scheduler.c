@@ -80,9 +80,11 @@ void setup_scheduler()
 void ordonnance()
 {
   struct process_t* prev_process = active_process;
-  //TODO: smarter scheduler
-  active_process = &processes[!active_process->pid];
-
+  for (int i = 1; i < NBPROC && active_process == prev_process; i++) {
+    int pid = (prev_process->pid + i) % NBPROC;
+    if (processes[pid].state == PS_RUNNABLE)
+      active_process = &processes[pid];
+  }
   prev_process->state = PS_RUNNABLE;
   active_process->state = PS_RUNNING;
   ctx_sw(prev_process->registers, active_process->registers);
