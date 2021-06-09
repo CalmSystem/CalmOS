@@ -1,7 +1,8 @@
 #include "cpu.h"
 #include "stdint.h"
 #include "scheduler.h"
-
+#include "interrupt.h"
+#include "string.h"
 #include "stdio.h"
 
 enum process_state_t
@@ -35,6 +36,19 @@ struct process_t
 };
 struct process_t processes[NBPROC] = {0};
 struct process_t* active_process;
+
+struct process_list_node_t
+{
+  struct process_t* val;
+  struct process_list_node_t* next;
+};
+struct process_list_t
+{
+  struct process_list_node_t buffer[NBPROC];
+  struct process_list_node_t* head;
+};
+/** Processes wait list for clock stored by time */
+struct process_list_t wait_clock_processes = {0};
 
 extern void ctx_sw(int* save, int* restore);
 void process_end();
@@ -100,10 +114,26 @@ int kill(int pid) { return stop(pid, 0); }
 
 void wait_clock(unsigned long clock)
 {
-  struct process_t* const ps = &processes[getpid()];
+  const int pid = getpid();
+  struct process_t* const ps = &processes[pid];
   ps->state = PS_ASLEEP;
   ps->state_attr.sleep = clock;
-  //TODO: add to wait queue
+
+  // Add to wait clock queue
+  struct process_list_node_t* const new_node = &wait_clock_processes.buffer[pid];
+  new_node->val = ps;
+
+  if (wait_clock_processes.head == NULL || clock <= wait_clock_processes.head->val->state_attr.sleep) {
+    new_node->next = wait_clock_processes.head;
+    wait_clock_processes.head = new_node;
+  } else {
+    struct process_list_node_t* current = wait_clock_processes.head;
+    while (current->next != NULL && clock > current->next->val->state_attr.sleep) {
+      current = current->next;
+    }
+    new_node->next = current->next;
+    current->next = new_node;
+  }
   schedule();
 }
 int waitpid(int pid, int* retvalp)
@@ -160,6 +190,23 @@ int stop(int pid, int retval) {
       child->parent = NOPID;
     }
   }
+
+  if (ps->state == PS_WAIT_LOCK && wait_clock_processes.head != NULL) {
+    // Remove from wait clock queue
+    if (wait_clock_processes.head->val == ps) {
+      wait_clock_processes.head = wait_clock_processes.head->next;
+    } else {
+      struct process_list_node_t* node = wait_clock_processes.head;
+      while (node->next != NULL) {
+        if (node->next->val == ps) {
+          node->next = node->next->next;
+          break;
+          }
+        node = node->next;
+      }
+    }
+  }
+
   if (ps->parent == NOPID) {
     ps->state = PS_DEAD;
   } else {
@@ -173,7 +220,6 @@ int stop(int pid, int retval) {
       parent->state_attr.child = pid;
     }
   }
-  // TODO: remove from wait queues
   printf("[%s(%d)] end with %d\n", ps->name, ps->pid, retval);
   schedule();
   return retval;
@@ -181,7 +227,15 @@ int stop(int pid, int retval) {
 
 /** Change running process */
 void schedule() {
-  // TODO: check wait queues
+  {  // Wake up processes on PS_WAIT_CLOCK
+    unsigned long time = current_clock();
+    while (wait_clock_processes.head != NULL &&
+           time >= wait_clock_processes.head->val->state_attr.sleep) {
+      // assert(wait_clock_processes.head->val->state == PS_WAIT_CLOCK);
+      wait_clock_processes.head->val->state = PS_RUNNABLE;
+      wait_clock_processes.head = wait_clock_processes.head->next;
+    }
+  }
 
   struct process_t* prev_process = active_process;
   for (int i = 1; i < NBPROC && active_process == prev_process; i++) {

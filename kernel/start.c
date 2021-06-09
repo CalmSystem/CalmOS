@@ -41,13 +41,25 @@ int proc_parent(void* arg) {
   return child_ret;
 }
 
+int proc_wait(void* arg) {
+  const unsigned long seconds = (unsigned long)arg;
+  unsigned long freq;
+  clock_settings(NULL, &freq);
+  while (1) {
+    wait_clock(current_clock() + seconds * freq);
+    printf("Ping every %lu seconds\n", seconds);
+  }
+}
+
 void kernel_start(void)
 {
   // call_debugger(); useless with qemu -s -S
   setup_scheduler();
   setup_interrupt_handlers();
 
-  start(proc_parent, 128, 1, "proc", (void*)3);
+  start(proc_parent, 128, 1, "proc_start", (void*)3);
+  start(proc_wait, 128, 1, "proc_fizz", (void*)3);
+  start(proc_wait, 128, 1, "proc_buzz", (void*)5);
   //start(proc_end, 128, 1, "proc_end3", (void*)3);
   //start(proc_end, 128, 1, "proc_end7", (void*)7);
   //start(proc_inf, 128, 1, "proc_inf", (void*)42);
