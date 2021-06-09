@@ -72,8 +72,8 @@ void handle_char(char c)
     break;
 
   case 9:
-    state.lig = ((state.lig / 8) + 1) * 8;
-    if (state.lig >= CONSOLE_LIG) state.lig = 79;
+    state.col = ((state.col / 8) + 1) * 8;
+    if (state.col >= CONSOLE_COL) state.col = CONSOLE_COL-1;
     break;
 
   case 10:
