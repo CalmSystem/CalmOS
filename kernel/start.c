@@ -28,6 +28,18 @@ int proc_inf(void* arg) {
 	}
 }
 
+int proc_child(void* arg) {
+  printf("Child got %d\n", *(int*)arg);
+  return 42;
+}
+int proc_parent(void* arg) {
+  int child_arg = ((int)arg)*2;
+  int child_pid = start(proc_child, 200, 4, "child", (void*)&child_arg);
+  int child_ret = 0;
+  waitpid(child_pid, &child_ret);
+  printf("Child %d end with %d\n", child_pid, child_ret);
+  return child_ret;
+}
 
 void kernel_start(void)
 {
@@ -35,9 +47,10 @@ void kernel_start(void)
   setup_scheduler();
   setup_interrupt_handlers();
 
-  start(proc_end, 128, 1, "proc_end3", (void*)3);
-  start(proc_end, 128, 1, "proc_end7", (void*)7);
-  start(proc_inf, 128, 1, "proc_inf", (void*)42);
+  start(proc_parent, 128, 1, "proc", (void*)3);
+  //start(proc_end, 128, 1, "proc_end3", (void*)3);
+  //start(proc_end, 128, 1, "proc_end7", (void*)7);
+  //start(proc_inf, 128, 1, "proc_inf", (void*)42);
   idle();
 
   printf("Bye\n");

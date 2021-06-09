@@ -38,7 +38,9 @@ struct process_t* active_process;
 
 extern void ctx_sw(int* save, int* restore);
 void process_end();
+
 void schedule();
+int stop(int pid, int retval);
 
 int getpid() { return active_process->pid; }
 #define IS_VALID_PID(pid) \
@@ -84,32 +86,6 @@ int start(int (*pt_func)(void*), unsigned long ssize, int prio,
   return NOPID;
 }
 
-/** Any process termination (kill, exit, return) */
-int _stop(int pid, int retval)
-{
-  ALIVE_PID(pid)
-  struct process_t* const ps = &processes[pid];
-  // Unbind children
-  for (int i = 0; i < NBPROC; i++) {
-    struct process_t* const child = &processes[i];
-    if (child->parent != ps->pid) continue;
-    if (child->state == PS_ZOMBIE) {
-      child->state = PS_DEAD;
-    } else {
-      child->parent = NOPID;
-    }
-  }
-  if (ps->parent == NOPID) {
-    ps->state = PS_DEAD;
-  } else {
-    ps->state = PS_ZOMBIE;
-    ps->state_attr.ret = retval;
-  }
-  //TODO: remove from wait queues
-  printf("[%s(%d)] end with %d\n", ps->name, ps->pid, retval);
-  schedule();
-  return retval;
-}
 void process_end() {
   int retval = 0;
   __asm__ __volatile__("\t movl %%eax,%0" : "=r"(retval));
@@ -117,15 +93,15 @@ void process_end() {
 }
 void exit(int retval)
 {
-  _stop(getpid(), retval);
+  stop(getpid(), retval);
   while(1); //noreturn
 }
-int kill(int pid) { return _stop(pid, 0); }
+int kill(int pid) { return stop(pid, 0); }
 
 void wait_clock(unsigned long clock)
 {
   struct process_t* const ps = &processes[getpid()];
-  ps->state = PS_WAIT_CHILD;
+  ps->state = PS_ASLEEP;
   ps->state_attr.sleep = clock;
   //TODO: add to wait queue
   schedule();
@@ -134,15 +110,15 @@ int waitpid(int pid, int* retvalp)
 {
   if (pid >= 0) { VALID_PID(pid); }
   struct process_t* const ps = &processes[getpid()];
-  ps->state = PS_ASLEEP;
+  ps->state = PS_WAIT_CHILD;
   ps->state_attr.child = pid;
   // TODO: add to wait queue
   schedule();
   if (retvalp) {
     struct process_t* const child = &processes[ps->state_attr.child];
     // assert(child->state == PS_ZOMBIE);
-    child->state = PS_DEAD;
     *retvalp = child->state_attr.ret;
+    child->state = PS_DEAD;
   }
   return ps->state_attr.child;
 }
@@ -169,6 +145,41 @@ void setup_scheduler()
 }
 
 void tick_scheduler() { schedule(); }
+
+/** Any process termination (kill, exit, return) */
+int stop(int pid, int retval) {
+  ALIVE_PID(pid)
+  struct process_t* const ps = &processes[pid];
+  // Unbind children
+  for (int i = 0; i < NBPROC; i++) {
+    struct process_t* const child = &processes[i];
+    if (child->parent != ps->pid) continue;
+    if (child->state == PS_ZOMBIE) {
+      child->state = PS_DEAD;
+    } else {
+      child->parent = NOPID;
+    }
+  }
+  if (ps->parent == NOPID) {
+    ps->state = PS_DEAD;
+  } else {
+    ps->state = PS_ZOMBIE;
+    ps->state_attr.ret = retval;
+    // Trigger waiting parent
+    struct process_t* const parent = &processes[ps->parent];
+    if (parent->state == PS_WAIT_CHILD && (parent->state_attr.child == NOPID ||
+                                           parent->state_attr.child == pid)) {
+      parent->state = PS_RUNNABLE;
+      parent->state_attr.child = pid;
+    }
+  }
+  // TODO: remove from wait queues
+  printf("[%s(%d)] end with %d\n", ps->name, ps->pid, retval);
+  schedule();
+  return retval;
+}
+
+/** Change running process */
 void schedule() {
   // TODO: check wait queues
 
