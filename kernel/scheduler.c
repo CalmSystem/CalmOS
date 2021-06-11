@@ -5,16 +5,23 @@
 #include "interrupt.h"
 #include "string.h"
 
-enum process_state_t
-{
+enum process_state_t {
+  /** Reusable */
   PS_DEAD = -2,
+  /** Stopped and waiting parent */
   PS_ZOMBIE = -1,
+  /** Can run */
   PS_RUNNABLE = 0,
+  /** Currently running */
   PS_RUNNING,
+  /** Waiting clock */
   PS_ASLEEP,
-  PS_WAIT_LOCK,
-  PS_WAIT_IO,
-  PS_WAIT_CHILD
+  /** Waiting child end */
+  PS_WAIT_CHILD,
+  /** Waiting semaphore */
+  // TODO: PS_WAIT_LOCK,
+  /** Waiting interrupt */
+  // TODO: PS_WAIT_IO
 };
 struct process_t
 {
@@ -32,6 +39,8 @@ struct process_t
     int* child;
     /** Next runnable process */
     struct process_t* next_runnable;
+    /** Next dead process (free pid) */
+    struct process_t* next_dead;
   } state_attr;
   int32_t registers[5];
   int32_t stack[NBSTACK];
@@ -39,6 +48,7 @@ struct process_t
 struct process_t processes[NBPROC] = {0};
 struct process_t* active_process;
 struct process_t* runnable_process_head = NULL;
+struct process_t* dead_process_head = NULL;
 
 struct process_list_node_t
 {
@@ -92,6 +102,13 @@ void push_runnable(struct process_t* ps) {
   }
 }
 
+void push_dead(struct process_t* ps) {
+  // assert(ps->state != PS_DEAD);
+  ps->state = PS_DEAD;
+  ps->state_attr.next_dead = dead_process_head;
+  dead_process_head = ps;
+}
+
 int getpid() { return active_process->pid; }
 #define IS_VALID_PID(pid) \
 (pid >= 0 && pid < NBPROC && processes[pid].state != PS_DEAD)
@@ -136,20 +153,20 @@ int start_background(int (*pt_func)(void*), unsigned long ssize, int prio,
           const char* name, void* arg) {
   if (ssize / sizeof(int32_t) > NBSTACK) return -2;
 
-  for (int i = 0; i < NBPROC; i++) {
-    if (processes[i].state != PS_DEAD) continue;
+  if (dead_process_head == NULL) return NOPID;
+  struct process_t* const ps = dead_process_head;
+  dead_process_head = dead_process_head->state_attr.next_dead;
+  // assert(ps->state == PS_DEAD);
 
-    processes[i].name = name;
-    processes[i].prio = prio;
-    processes[i].parent = getpid();
-    processes[i].stack[NBSTACK - 3] = (int32_t)pt_func;
-    processes[i].stack[NBSTACK - 2] = (int32_t)&process_end;
-    processes[i].stack[NBSTACK - 1] = (int32_t)arg;
-    processes[i].registers[1] = (int32_t)&processes[i].stack[NBSTACK - 3];
-    push_runnable(&processes[i]);
-    return i;
-  }
-  return NOPID;
+  ps->name = name;
+  ps->prio = prio;
+  ps->parent = getpid();
+  ps->stack[NBSTACK - 3] = (int32_t)pt_func;
+  ps->stack[NBSTACK - 2] = (int32_t)&process_end;
+  ps->stack[NBSTACK - 1] = (int32_t)arg;
+  ps->registers[1] = (int32_t)&ps->stack[NBSTACK - 3];
+  push_runnable(ps);
+  return ps->pid;
 }
 int start(int (*pt_func)(void*), unsigned long ssize, int prio,
           const char* name, void* arg) {
@@ -229,7 +246,7 @@ int waitpid(int pid, int* retvalp)
     // assert(child != NULL && child->state == PS_ZOMBIE);
   }
   if (retvalp) *retvalp = child->state_attr.ret;
-  child->state = PS_DEAD;
+  push_dead(child);
   return child->pid;
 }
 
@@ -246,7 +263,11 @@ void setup_scheduler()
   for (int i = 0; i < NBPROC; i++) {
     processes[i].pid = i;
     processes[i].state = PS_DEAD;
+    processes[i].state_attr.next_dead = &processes[i+1];
   }
+  processes[NBPROC - 1].state_attr.next_dead = NULL;
+  dead_process_head = &processes[1];
+
   processes[0].prio = 0;
   processes[0].parent = NOPID;
   processes[0].name = "idle";
@@ -264,7 +285,7 @@ int stop(int pid, int retval) {
     struct process_t* const child = &processes[i];
     if (child->parent != ps->pid) continue;
     if (child->state == PS_ZOMBIE) {
-      child->state = PS_DEAD;
+      push_dead(child);
     } else {
       child->parent = NOPID;
     }
@@ -288,7 +309,7 @@ int stop(int pid, int retval) {
 
   remove_runnable(ps);
   if (ps->parent == NOPID) {
-    ps->state = PS_DEAD;
+    push_dead(ps);
   } else {
     ps->state = PS_ZOMBIE;
     ps->state_attr.ret = retval;
@@ -306,11 +327,11 @@ int stop(int pid, int retval) {
 
 /** Change running process */
 void tick_scheduler() {
-  {  // Wake up processes on PS_WAIT_CLOCK
+  {  // Wake up processes on PS_ASLEEP
     unsigned long time = current_clock();
     while (wait_clock_processes.head != NULL &&
            time >= wait_clock_processes.head->val->state_attr.sleep) {
-      // assert(wait_clock_processes.head->val->state == PS_WAIT_CLOCK);
+      // assert(wait_clock_processes.head->val->state == PS_ASLEEP);
       push_runnable(wait_clock_processes.head->val);
       wait_clock_processes.head = wait_clock_processes.head->next;
     }
