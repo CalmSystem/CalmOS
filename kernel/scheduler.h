@@ -13,6 +13,8 @@ const char* getpname(int pid);
 
 int start(int (*pt_func)(void *), unsigned long ssize, int prio,
           const char *name, void *arg);
+int start_background(int (*pt_func)(void *), unsigned long ssize, int prio,
+          const char *name, void *arg);
 void exit(int retval);
 int kill(int pid);
 
