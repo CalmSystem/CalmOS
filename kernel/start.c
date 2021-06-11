@@ -56,13 +56,13 @@ void kernel_start(void)
   setup_scheduler();
   setup_interrupt_handlers();
 
-  test_n(1);
-  // start(test_proc, 128, 128, "test_proc", NULL);
-  // start(proc_wait, 128, 1, "proc_fizz", (void*)3);
-  // start(proc_wait, 128, 1, "proc_buzz", (void*)5);
-  // start(proc_end, 128, 1, "proc_end3", (void*)3);
-  // start(proc_end, 128, 1, "proc_end7", (void*)7);
-  // start(proc_inf, 128, 1, "proc_inf", (void*)42);
+  test_all();
+  // start_background(test_proc, 128, 128, "test_proc", NULL);
+  // start_background(proc_wait, 128, 1, "proc_fizz", (void*)3);
+  // start_background(proc_wait, 128, 1, "proc_buzz", (void*)5);
+  // start_background(proc_end, 128, 1, "proc_end3", (void*)3);
+  // start_background(proc_end, 128, 1, "proc_end7", (void*)7);
+  // start_background(proc_inf, 128, 1, "proc_inf", (void*)42);
   idle();
 
   printf("Bye\n");

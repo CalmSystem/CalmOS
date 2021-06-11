@@ -4,6 +4,9 @@ all:
 	$(MAKE) -C user/ all VERBOSE=$(VERBOSE)
 	$(MAKE) -C kernel/ kernel.bin VERBOSE=$(VERBOSE)
 
+run-now:
+	qemu-system-i386 -m 256M -kernel kernel/kernel.bin
+
 run:
 	qemu-system-i386 -s -S -m 256M -kernel kernel/kernel.bin
 

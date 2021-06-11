@@ -609,7 +609,20 @@ int test_proc(void* arg) {
   }
   return 0;
 }
-
 void test_n(int n) {
-  start(test_proc, 4000, 128, "test", (void*)n);
+  start_background(test_proc, 4000, 128, "test", (void*)n);
+}
+
+int test_all_proc(void* arg) {
+  (void)arg;
+  for (int n = 1; n <= 8; n++) {
+    printf("Test %d:\n", n);
+    int pid = start(test_proc, 4000, 128, "test", (void *)n);
+    waitpid(pid, NULL);
+  }
+  printf("All done.\n");
+  return 0;
+}
+void test_all() {
+  start_background(test_all_proc, 4000, 1, "test_all", NULL);
 }
