@@ -22,7 +22,7 @@ int waitpid(int pid, int *retvalp);
 #define NOPID -1
 
 #define NBPROC 30
-#define NBSTACK 512
+#define NBSTACK 1024
 
 #define MINPRIO 1
 #define MAXPRIO 256

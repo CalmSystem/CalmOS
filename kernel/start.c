@@ -3,6 +3,7 @@
 #include "interrupt.h"
 #include "cpu.h"
 #include "scheduler.h"
+#include "test.h"
 
 int proc_end(void* arg) {
   unsigned long i, j;
@@ -29,16 +30,14 @@ int proc_inf(void* arg) {
 }
 
 int proc_child(void* arg) {
-  printf("Child got %d\n", *(int*)arg);
+  printf("%d\n", *(int*)arg);
   return 42;
 }
 int proc_parent(void* arg) {
-  int child_arg = ((int)arg)*2;
-  int child_pid = start(proc_child, 200, 4, "child", (void*)&child_arg);
-  int child_ret = 0;
-  waitpid(child_pid, &child_ret);
-  printf("Child %d end with %d\n", child_pid, child_ret);
-  return child_ret;
+  for (int i = (int)arg;; i++) {
+    int child_pid = start(proc_child, 200, 4, "child", (void*)&i);
+    waitpid(child_pid, NULL);
+  }
 }
 
 int proc_wait(void* arg) {
@@ -57,12 +56,13 @@ void kernel_start(void)
   setup_scheduler();
   setup_interrupt_handlers();
 
-  start(proc_parent, 128, 1, "proc_start", (void*)3);
-  start(proc_wait, 128, 1, "proc_fizz", (void*)3);
-  start(proc_wait, 128, 1, "proc_buzz", (void*)5);
-  //start(proc_end, 128, 1, "proc_end3", (void*)3);
-  //start(proc_end, 128, 1, "proc_end7", (void*)7);
-  //start(proc_inf, 128, 1, "proc_inf", (void*)42);
+  test_n(1);
+  // start(test_proc, 128, 128, "test_proc", NULL);
+  // start(proc_wait, 128, 1, "proc_fizz", (void*)3);
+  // start(proc_wait, 128, 1, "proc_buzz", (void*)5);
+  // start(proc_end, 128, 1, "proc_end3", (void*)3);
+  // start(proc_end, 128, 1, "proc_end7", (void*)7);
+  // start(proc_inf, 128, 1, "proc_inf", (void*)42);
   idle();
 
   printf("Bye\n");

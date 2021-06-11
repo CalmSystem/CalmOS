@@ -104,14 +104,14 @@ void handle_char(char c)
   }
 }
 
-void console_putbytes(char *chaine, int32_t taille)
+void console_putbytes(const char *chaine, int32_t taille)
 {
   for (int32_t i = 0; i < taille; i++) {
     handle_char(chaine[i]);
   }
   put_cursor(state.col, state.lig);
 }
-void console_putbytes_at(char *chaine, int32_t taille, uint8_t col, uint8_t lig)
+void console_putbytes_at(const char *chaine, int32_t taille, uint8_t col, uint8_t lig)
 {
   struct state_t save = state;
   state.col = col;

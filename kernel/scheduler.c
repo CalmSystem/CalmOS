@@ -3,7 +3,6 @@
 #include "scheduler.h"
 #include "interrupt.h"
 #include "string.h"
-#include "stdio.h"
 
 enum process_state_t
 {
@@ -82,7 +81,7 @@ const char* getpname(int pid) {
 
 int start(int (*pt_func)(void*), unsigned long ssize, int prio,
           const char* name, void* arg) {
-  if (ssize > NBSTACK) return -2;
+  if (ssize/sizeof(int32_t) > NBSTACK) return -2;
 
   for (int i = 0; i < NBPROC; i++) {
     if (processes[i].state != PS_DEAD) continue;
@@ -144,12 +143,10 @@ int waitpid(int pid, int* retvalp)
   ps->state_attr.child = pid;
   // TODO: add to wait queue
   schedule();
-  if (retvalp) {
-    struct process_t* const child = &processes[ps->state_attr.child];
-    // assert(child->state == PS_ZOMBIE);
-    *retvalp = child->state_attr.ret;
-    child->state = PS_DEAD;
-  }
+  struct process_t* const child = &processes[ps->state_attr.child];
+  // assert(child->state == PS_ZOMBIE);
+  if (retvalp) *retvalp = child->state_attr.ret;
+  child->state = PS_DEAD;
   return ps->state_attr.child;
 }
 
@@ -220,7 +217,6 @@ int stop(int pid, int retval) {
       parent->state_attr.child = pid;
     }
   }
-  printf("[%s(%d)] end with %d\n", ps->name, ps->pid, retval);
   schedule();
   return retval;
 }
