@@ -31,8 +31,12 @@ struct process_t
   int prio;
   enum process_state_t state;
   union {
-    /** Asleep until clock */
-    unsigned long sleep;
+    struct process_asleep_t {
+      /** Asleep until clock */
+      unsigned long clock;
+      /** Next asleep process */
+      struct process_t* next;
+    } asleep;
     /** Zombie return value */
     int ret;
     /** Wait child pid */
@@ -47,21 +51,10 @@ struct process_t
 };
 struct process_t processes[NBPROC] = {0};
 struct process_t* active_process;
+
 struct process_t* runnable_process_head = NULL;
 struct process_t* dead_process_head = NULL;
-
-struct process_list_node_t
-{
-  struct process_t* val;
-  struct process_list_node_t* next;
-};
-struct process_list_t
-{
-  struct process_list_node_t buffer[NBPROC];
-  struct process_list_node_t* head;
-};
-/** Processes wait list for clock stored by time */
-struct process_list_t wait_clock_processes = {0};
+struct process_t* asleep_process_head = NULL;
 
 extern void ctx_sw(int* save, int* restore);
 void process_end();
@@ -196,22 +189,19 @@ void wait_clock(unsigned long clock)
   struct process_t* const ps = &processes[pid];
   remove_runnable(ps);
   ps->state = PS_ASLEEP;
-  ps->state_attr.sleep = clock;
+  ps->state_attr.asleep.clock = clock;
 
-  // Add to wait clock queue
-  struct process_list_node_t* const new_node = &wait_clock_processes.buffer[pid];
-  new_node->val = ps;
-
-  if (wait_clock_processes.head == NULL || clock <= wait_clock_processes.head->val->state_attr.sleep) {
-    new_node->next = wait_clock_processes.head;
-    wait_clock_processes.head = new_node;
+  // Add to asleep queue
+  if (asleep_process_head == NULL || clock <= asleep_process_head->state_attr.asleep.clock) {
+    ps->state_attr.asleep.next = asleep_process_head;
+    asleep_process_head = ps;
   } else {
-    struct process_list_node_t* current = wait_clock_processes.head;
-    while (current->next != NULL && clock > current->next->val->state_attr.sleep) {
-      current = current->next;
+    struct process_asleep_t* prev = &asleep_process_head->state_attr.asleep;
+    while (prev->next != NULL && clock > prev->next->state_attr.asleep.clock) {
+      prev = &prev->next->state_attr.asleep;
     }
-    new_node->next = current->next;
-    current->next = new_node;
+    ps->state_attr.asleep.next = prev->next;
+    prev->next = ps;
   }
   tick_scheduler();
 }
@@ -291,18 +281,18 @@ int stop(int pid, int retval) {
     }
   }
 
-  if (ps->state == PS_ASLEEP && wait_clock_processes.head != NULL) {
+  if (ps->state == PS_ASLEEP && asleep_process_head != NULL) {
     // Remove from wait clock queue
-    if (wait_clock_processes.head->val == ps) {
-      wait_clock_processes.head = wait_clock_processes.head->next;
+    if (ps == asleep_process_head) {
+      asleep_process_head = ps->state_attr.asleep.next;
     } else {
-      struct process_list_node_t* node = wait_clock_processes.head;
-      while (node->next != NULL) {
-        if (node->next->val == ps) {
-          node->next = node->next->next;
+      struct process_asleep_t* prev = &asleep_process_head->state_attr.asleep;
+      while (prev->next != NULL) {
+        if (prev->next == ps) {
+          prev->next = ps->state_attr.asleep.next;
           break;
         }
-        node = node->next;
+        prev = &prev->next->state_attr.asleep;
       }
     }
   }
@@ -329,11 +319,11 @@ int stop(int pid, int retval) {
 void tick_scheduler() {
   {  // Wake up processes on PS_ASLEEP
     unsigned long time = current_clock();
-    while (wait_clock_processes.head != NULL &&
-           time >= wait_clock_processes.head->val->state_attr.sleep) {
-      // assert(wait_clock_processes.head->val->state == PS_ASLEEP);
-      push_runnable(wait_clock_processes.head->val);
-      wait_clock_processes.head = wait_clock_processes.head->next;
+    while (asleep_process_head != NULL && time >= asleep_process_head->state_attr.asleep.clock) {
+      // assert(asleep_process_head->state == PS_ASLEEP);
+      struct process_t* const awake = asleep_process_head;
+      asleep_process_head = asleep_process_head->state_attr.asleep.next;
+      push_runnable(awake);
     }
   }
 
