@@ -14,6 +14,7 @@ const uint32_t IRQ_LOW_MASK_DATA_PORT = 0x21;
 
 extern void traitant_IT_32();
 
+/** Writes handler on IDT */
 void set_handler(unsigned int nidt, void (*handler)(void)) {
   uint16_t* const cell = IDT + nidt * 8;
   *(cell + 0) = (unsigned int)handler;
@@ -22,16 +23,16 @@ void set_handler(unsigned int nidt, void (*handler)(void)) {
   *(cell + 3) = (unsigned int)handler >> 16;
 }
 
-void set_mask(uint8_t irq, bool masked)
-{
+/** Writes mask for IRQ (only between 0 and 7) */
+void set_mask(uint8_t irq, bool masked) {
   uint8_t masks = inb(IRQ_LOW_MASK_DATA_PORT);
   // Set bit irq to masked
   masks = (masks & ~(1UL << irq)) | (masked << irq);
   outb(masks, IRQ_LOW_MASK_DATA_PORT);
 }
 
-void set_pit()
-{
+/** Writes programmable clock interval */
+void set_pit() {
   const int interval = QUARTZ / CLOCKFREQ;
   outb(0x34, 0x43);
   outb(interval % 256, 0x40);
@@ -50,15 +51,14 @@ void tic_PIT() {
   }
 }
 
-void clock_settings(unsigned long* quartz, unsigned long* ticks)
-{
+void clock_settings(unsigned long* quartz, unsigned long* ticks) {
   if (quartz != NULL) *quartz = QUARTZ;
   if (ticks != NULL) *ticks = CLOCKFREQ;
 }
 unsigned long current_clock() { return pit_count; }
 
-void setup_interrupt_handlers()
-{
+void setup_interrupt_handlers() {
+  if (!(CLOCKFREQ > SCHEDFREQ && CLOCKFREQ % SCHEDFREQ == 0)) panic("Invalid clock constants");
   set_handler(32, traitant_IT_32);
   set_pit();
   set_mask(0, false);

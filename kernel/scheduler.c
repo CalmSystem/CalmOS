@@ -2,8 +2,9 @@
 #include "stdint.h"
 #include "stdbool.h"
 #include "scheduler.h"
-#include "interrupt.h"
 #include "string.h"
+#include "debug.h"
+#include "interrupt.h"
 
 enum process_state_t {
   /** Reusable */
@@ -26,10 +27,12 @@ enum process_state_t {
 struct process_t
 {
   int pid;
+  /** Parent process pid or NOPID */
   int parent;
   const char* name;
   int prio;
   enum process_state_t state;
+  /** Discriminated union with state as tag (std::variant) */
   union {
     struct process_asleep_t {
       /** Asleep until clock */
@@ -38,7 +41,7 @@ struct process_t
       struct process_t* next;
     } asleep;
     /** Zombie return value */
-    int ret;
+    int retval;
     /** Wait child pid */
     int* child;
     /** Next runnable process */
@@ -50,17 +53,25 @@ struct process_t
   int32_t stack[NBSTACK];
 };
 struct process_t processes[NBPROC] = {0};
+/** Currently running process */
 struct process_t* active_process;
 
+/** Linked list of runnable processes sorted by descressing priority. Next is state_attr.next_runnable */
 struct process_t* runnable_process_head = NULL;
+/** Stack of dead processes aka reusable pid. Next is state_attr.next_dead */
 struct process_t* dead_process_head = NULL;
+/** Linked list of asleep processes sorted by ascending wake time (clock). Next is state_attr.asleep.next */
 struct process_t* asleep_process_head = NULL;
 
+/** Context switch assembly */
 extern void ctx_sw(int* save, int* restore);
+/** Calls stop using captured return value */
 void process_end();
 
+/** Any process termination (kill, exit, return) */
 int stop(int pid, int retval);
 
+/** Remove process from runnable list */
 void remove_runnable(struct process_t* ps) {
   if (runnable_process_head != NULL && ps->state == PS_RUNNABLE) {
     if (runnable_process_head == ps) {
@@ -78,8 +89,9 @@ void remove_runnable(struct process_t* ps) {
     }
   }
 }
+/** Add process to runnable list */
 void push_runnable(struct process_t* ps) {
-  // assert(ps->state != PS_RUNNABLE)
+  assert(ps->state != PS_RUNNABLE);
   ps->state = PS_RUNNABLE;
   if (runnable_process_head == NULL || ps->prio > runnable_process_head->prio) {
     ps->state_attr.next_runnable = runnable_process_head;
@@ -94,9 +106,9 @@ void push_runnable(struct process_t* ps) {
     current->state_attr.next_runnable = ps;
   }
 }
-
+/** Add process to dead stack */
 void push_dead(struct process_t* ps) {
-  // assert(ps->state != PS_DEAD);
+  assert(ps->state != PS_DEAD);
   ps->state = PS_DEAD;
   ps->state_attr.next_dead = dead_process_head;
   dead_process_head = ps;
@@ -110,6 +122,7 @@ if (!IS_VALID_PID(pid)) return NOPID;
 #define ALIVE_PID(pid) \
 if (pid < 0 || pid >= NBPROC || processes[pid].state < PS_RUNNABLE) return NOPID;
 
+/** Trigger scheduler if current quantum must end */
 void fix_scheduler() {
   if (active_process->state != PS_RUNNING ||
   (runnable_process_head != NULL && active_process->prio < runnable_process_head->prio))
@@ -128,6 +141,8 @@ int chprio(int pid, int newprio) {
 
   if (ps->state == PS_RUNNABLE) {
     remove_runnable(ps);
+    // Process state is temporary undefined
+    ps->state = (enum process_state_t)-1;
     push_runnable(ps);
   }
   fix_scheduler();
@@ -149,7 +164,7 @@ int start_background(int (*pt_func)(void*), unsigned long ssize, int prio,
   if (dead_process_head == NULL) return NOPID;
   struct process_t* const ps = dead_process_head;
   dead_process_head = dead_process_head->state_attr.next_dead;
-  // assert(ps->state == PS_DEAD);
+  assert(ps->state == PS_DEAD);
 
   ps->name = name;
   ps->prio = prio;
@@ -173,15 +188,14 @@ void process_end() {
   __asm__ __volatile__("\t movl %%eax,%0" : "=r"(retval));
   exit(retval);
 }
-void exit(int retval)
-{
+void exit(int retval) {
   stop(getpid(), retval);
   while(1); //noreturn
 }
 int kill(int pid) {
   if (pid <= 0) return NOPID;
   return stop(pid, 0);
-  }
+}
 
 void wait_clock(unsigned long clock)
 {
@@ -232,10 +246,10 @@ int waitpid(int pid, int* retvalp)
     ps->state_attr.child = &child_pid;
     tick_scheduler();
     // NOTE: child writes its pid in child_pid
+    assert(IS_VALID_PID(child_pid) && processes[child_pid].state == PS_ZOMBIE);
     child = &processes[child_pid];
-    // assert(child != NULL && child->state == PS_ZOMBIE);
   }
-  if (retvalp) *retvalp = child->state_attr.ret;
+  if (retvalp) *retvalp = child->state_attr.retval;
   push_dead(child);
   return child->pid;
 }
@@ -265,7 +279,6 @@ void setup_scheduler()
   active_process = &processes[0];
 }
 
-/** Any process termination (kill, exit, return) */
 int stop(int pid, int retval) {
   ALIVE_PID(pid)
   struct process_t* const ps = &processes[pid];
@@ -302,7 +315,7 @@ int stop(int pid, int retval) {
     push_dead(ps);
   } else {
     ps->state = PS_ZOMBIE;
-    ps->state_attr.ret = retval;
+    ps->state_attr.retval = retval;
     // Trigger waiting parent
     struct process_t* const parent = &processes[ps->parent];
     if (parent->state == PS_WAIT_CHILD && (*parent->state_attr.child == NOPID ||
@@ -320,13 +333,14 @@ void tick_scheduler() {
   {  // Wake up processes on PS_ASLEEP
     unsigned long time = current_clock();
     while (asleep_process_head != NULL && time >= asleep_process_head->state_attr.asleep.clock) {
-      // assert(asleep_process_head->state == PS_ASLEEP);
+      assert(asleep_process_head->state == PS_ASLEEP);
       struct process_t* const awake = asleep_process_head;
       asleep_process_head = asleep_process_head->state_attr.asleep.next;
       push_runnable(awake);
     }
   }
 
+  // Active process is stopped or an other process with valid priority is runnable
   if (active_process->state != PS_RUNNING || (runnable_process_head != NULL && runnable_process_head->prio >= active_process->prio)) {
     struct process_t* prev_process = active_process;
     active_process = runnable_process_head;

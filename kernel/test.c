@@ -2,6 +2,8 @@
 #include "interrupt.h"
 #include "stdio.h"
 
+// Extracted from user/test.c
+
 #define DUMMY_VAL 78
 
 #define TRUE 1
