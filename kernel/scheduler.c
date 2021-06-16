@@ -64,9 +64,9 @@ struct process_t* dead_process_head = NULL;
 struct process_t* asleep_process_head = NULL;
 
 /** Context switch assembly */
-extern void ctx_sw(int* save, int* restore);
+extern void CTX_swap(int* save, int* restore);
 /** Calls stop using captured return value */
-void process_end();
+extern void PROC_end();
 
 /** Any process termination (kill, exit, return) */
 int stop(int pid, int retval);
@@ -170,7 +170,7 @@ int start_background(int (*pt_func)(void*), unsigned long ssize, int prio,
   ps->prio = prio;
   ps->parent = getpid();
   ps->stack[NBSTACK - 3] = (int32_t)pt_func;
-  ps->stack[NBSTACK - 2] = (int32_t)&process_end;
+  ps->stack[NBSTACK - 2] = (int32_t)&PROC_end;
   ps->stack[NBSTACK - 1] = (int32_t)arg;
   ps->registers[1] = (int32_t)&ps->stack[NBSTACK - 3];
   push_runnable(ps);
@@ -183,11 +183,6 @@ int start(int (*pt_func)(void*), unsigned long ssize, int prio,
   return pid;
 }
 
-void process_end() {
-  int retval = 0;
-  __asm__ __volatile__("\t movl %%eax,%0" : "=r"(retval));
-  exit(retval);
-}
 void exit(int retval) {
   stop(getpid(), retval);
   while(1); //noreturn
@@ -351,6 +346,6 @@ void tick_scheduler() {
       push_runnable(prev_process);
     }
     active_process->state = PS_RUNNING;
-    ctx_sw(prev_process->registers, active_process->registers);
+    CTX_swap(prev_process->registers, active_process->registers);
   }
 }

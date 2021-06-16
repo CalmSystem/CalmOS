@@ -16,7 +16,7 @@ const char* getpname(int pid);
 
 int start(int (*pt_func)(void *), unsigned long ssize, int prio,
           const char *name, void *arg);
-/** Add process without triggering scheduler. Use to create inital processes */
+/** Add process without triggering scheduler. Used to create initial processes */
 int start_background(int (*pt_func)(void *), unsigned long ssize, int prio,
           const char *name, void *arg);
 void exit(int retval);

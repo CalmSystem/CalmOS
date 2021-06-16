@@ -58,3 +58,27 @@ SERV_EXC_TASK(28)
 SERV_EXC_TASK(29)
 SERV_EXC_TASK(30)
 SERV_EXC_TASK(31)
+
+# Interrupt handlers
+# Handles programable clock interrupts
+    .globl IT_PIT_handler
+IT_PIT_handler:
+# save important registers
+	pushl %esi
+	pushl %edi
+	pushl %edx
+	pushl %ecx
+	pushl %ebx
+	pushl %eax
+# call C function dealing with interrupt
+    call tic_PIT
+# restore important registers
+	popl %eax
+	popl %ebx
+	popl %ecx
+	popl %edx
+	popl %edi
+	popl %esi
+# end interrupt handler
+    iret
+

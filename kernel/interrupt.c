@@ -12,7 +12,7 @@ void* const IDT = (void*)0x1000;
 const uint32_t IRQ_LOW_MASK_DATA_PORT = 0x21;
 // IRQ_HIGH_MASK_DATA_PORT 0xA1
 
-extern void traitant_IT_32();
+extern void IT_PIT_handler();
 
 /** Writes handler on IDT */
 void set_handler(unsigned int nidt, void (*handler)(void)) {
@@ -59,7 +59,7 @@ unsigned long current_clock() { return pit_count; }
 
 void setup_interrupt_handlers() {
   if (!(CLOCKFREQ > SCHEDFREQ && CLOCKFREQ % SCHEDFREQ == 0)) panic("Invalid clock constants");
-  set_handler(32, traitant_IT_32);
+  set_handler(32, IT_PIT_handler);
   set_pit();
   set_mask(0, false);
 }
