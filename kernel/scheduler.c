@@ -1,57 +1,11 @@
 #include "cpu.h"
-#include "stdint.h"
 #include "stdbool.h"
 #include "scheduler.h"
 #include "string.h"
 #include "debug.h"
 #include "interrupt.h"
+#include "queues.h"
 
-enum process_state_t {
-  /** Reusable */
-  PS_DEAD = -2,
-  /** Stopped and waiting parent */
-  PS_ZOMBIE = -1,
-  /** Can run */
-  PS_RUNNABLE = 0,
-  /** Currently running */
-  PS_RUNNING,
-  /** Waiting clock */
-  PS_ASLEEP,
-  /** Waiting child end */
-  PS_WAIT_CHILD,
-  /** Waiting semaphore */
-  // TODO: PS_WAIT_LOCK,
-  /** Waiting interrupt */
-  // TODO: PS_WAIT_IO
-};
-struct process_t
-{
-  int pid;
-  /** Parent process pid or NOPID */
-  int parent;
-  const char* name;
-  int prio;
-  enum process_state_t state;
-  /** Discriminated union with state as tag (std::variant) */
-  union {
-    struct process_asleep_t {
-      /** Asleep until clock */
-      unsigned long clock;
-      /** Next asleep process */
-      struct process_t* next;
-    } asleep;
-    /** Zombie return value */
-    int retval;
-    /** Wait child pid */
-    int* child;
-    /** Next runnable process */
-    struct process_t* next_runnable;
-    /** Next dead process (free pid) */
-    struct process_t* next_dead;
-  } state_attr;
-  int32_t registers[5];
-  int32_t stack[NBSTACK];
-};
 struct process_t processes[NBPROC] = {0};
 /** Currently running process */
 struct process_t* active_process;
@@ -115,19 +69,14 @@ void push_dead(struct process_t* ps) {
 }
 
 int getpid() { return active_process->pid; }
+struct process_t* getproc() { return &processes[getpid()]; }
+
 #define IS_VALID_PID(pid) \
 (pid >= 0 && pid < NBPROC && processes[pid].state != PS_DEAD)
 #define VALID_PID(pid) \
 if (!IS_VALID_PID(pid)) return NOPID;
 #define ALIVE_PID(pid) \
 if (pid < 0 || pid >= NBPROC || processes[pid].state < PS_RUNNABLE) return NOPID;
-
-/** Trigger scheduler if current quantum must end */
-void fix_scheduler() {
-  if (active_process->state != PS_RUNNING ||
-  (runnable_process_head != NULL && active_process->prio < runnable_process_head->prio))
-    tick_scheduler();
-}
 
 int chprio(int pid, int newprio) {
   ALIVE_PID(pid);
@@ -139,11 +88,25 @@ int chprio(int pid, int newprio) {
   const int oldprio = ps->prio;
   ps->prio = newprio;
 
-  if (ps->state == PS_RUNNABLE) {
+  switch (ps->state)
+  {
+  case PS_RUNNABLE:
     remove_runnable(ps);
     // Process state is temporary undefined
-    ps->state = (enum process_state_t)-1;
+    ps->state = (enum process_state_t) - 1;
     push_runnable(ps);
+    break;
+  
+  case PS_WAIT_QUEUE_EMPTY:
+    queue_reorder_empty_process(ps);
+    break;
+
+  case PS_WAIT_QUEUE_FULL:
+    queue_reorder_full_process(ps);
+    break;
+
+  default:
+    break;
   }
   fix_scheduler();
   return oldprio;
@@ -289,7 +252,10 @@ int stop(int pid, int retval) {
     }
   }
 
-  if (ps->state == PS_ASLEEP && asleep_process_head != NULL) {
+  switch (ps->state)
+  {
+  case PS_ASLEEP:
+    assert(asleep_process_head != NULL);
     // Remove from wait clock queue
     if (ps == asleep_process_head) {
       asleep_process_head = ps->state_attr.asleep.next;
@@ -303,6 +269,18 @@ int stop(int pid, int retval) {
         prev = &prev->next->state_attr.asleep;
       }
     }
+    break;
+
+  case PS_WAIT_QUEUE_EMPTY:
+    queue_remove_empty_process(ps);
+    break;
+
+  case PS_WAIT_QUEUE_FULL:
+    queue_remove_full_process(ps);
+    break;
+
+  default:
+    break;
   }
 
   remove_runnable(ps);
@@ -323,6 +301,11 @@ int stop(int pid, int retval) {
   return retval;
 }
 
+void fix_scheduler() {
+  if (active_process->state != PS_RUNNING ||
+  (runnable_process_head != NULL && active_process->prio < runnable_process_head->prio))
+    tick_scheduler();
+}
 /** Change running process */
 void tick_scheduler() {
   {  // Wake up processes on PS_ASLEEP
@@ -341,7 +324,7 @@ void tick_scheduler() {
     active_process = runnable_process_head;
     // Pop runnable
     runnable_process_head = runnable_process_head->state_attr.next_runnable;
-    
+
     if (prev_process->state == PS_RUNNING) {
       push_runnable(prev_process);
     }

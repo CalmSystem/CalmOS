@@ -1,12 +1,88 @@
 #ifndef SCHEDULER_H_
 #define SCHEDULER_H_
 
+#include "stdint.h"
+
+#define NOPID -1
+#define NBPROC 30
+/** Size of kernel process stack in int32_t */
+#define NBSTACK 1024
+
+#define MINPRIO 1
+#define MAXPRIO 256
+
+enum process_state_t {
+  /** Reusable */
+  PS_DEAD = -2,
+  /** Stopped and waiting parent */
+  PS_ZOMBIE = -1,
+  /** Can run */
+  PS_RUNNABLE = 0,
+  /** Currently running */
+  PS_RUNNING,
+  /** Waiting clock */
+  PS_ASLEEP,
+  /** Waiting child end */
+  PS_WAIT_CHILD,
+  /** Waiting on an empty queue */
+  PS_WAIT_QUEUE_EMPTY,
+  /** Waiting on a full queue */
+  PS_WAIT_QUEUE_FULL,
+  /** Waiting semaphore */
+  // TODO: PS_WAIT_LOCK,
+  /** Waiting interrupt */
+  // TODO: PS_WAIT_IO
+};
+
+struct process_t
+{
+  int pid;
+  /** Parent process pid or NOPID */
+  int parent;
+  const char* name;
+  int prio;
+  enum process_state_t state;
+  /** Discriminated union with state as tag (std::variant) */
+  union {
+    struct process_asleep_t {
+      /** Asleep until clock */
+      unsigned long clock;
+      /** Next asleep process */
+      struct process_t* next;
+    } asleep;
+    /** Zombie return value */
+    int retval;
+    /** Wait child pid */
+    int* child;
+    /** Next runnable process */
+    struct process_t* next_runnable;
+    struct {
+      /** Next queue waiting process */
+      struct process_t* next;
+      /** Queue ID */
+      int fid;
+      /** Return value after waiting */
+      int* retval;
+      /** Message to send or receive */
+      int* message;
+    } wait_queue;
+    /** Next dead process (free pid) */
+    struct process_t* next_dead;
+  } state_attr;
+  int32_t registers[5];
+  int32_t stack[NBSTACK];
+};
+
 /** Initialize process table */
 void setup_scheduler();
 /** Lowest priority halt process */
 void idle();
 /** Trigger context_switch. Called by interrupt.c at SCHEDFREQ */
 void tick_scheduler();
+/** Trigger scheduler if current quantum must end */
+void fix_scheduler();
+/** Ptr to active process */
+struct process_t* getproc();
 
 int getpid(void);
 
@@ -25,12 +101,7 @@ int kill(int pid);
 void wait_clock(unsigned long clock);
 int waitpid(int pid, int *retvalp);
 
-#define NOPID -1
-#define NBPROC 30
-/** Size of kernel process stack in int32_t */
-#define NBSTACK 1024
-
-#define MINPRIO 1
-#define MAXPRIO 256
+void remove_runnable(struct process_t* ps);
+void push_runnable(struct process_t* ps);
 
 #endif /*SCHEDULER_H_*/
