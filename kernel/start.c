@@ -4,6 +4,7 @@
 #include "cpu.h"
 #include "scheduler.h"
 #include "test.h"
+#include "start.h"
 
 int proc_wait(void* arg) {
   const unsigned long seconds = (unsigned long)arg;
@@ -29,8 +30,9 @@ void kernel_start(void)
   setup_scheduler();
   setup_interrupt_handlers();
 
-  test_all();
-  // start_background(test_proc, 128, 128, "test_proc", NULL);
+  // NOTE: Kernel tests
+  // test_all();
+  start_user_background(user_start, 4000, 1, "user_start", NULL);
   // start_background(proc_wait, 128, 1, "proc_fizz", (void*)3);
   // start_background(proc_wait, 128, 1, "proc_buzz", (void*)5);
 

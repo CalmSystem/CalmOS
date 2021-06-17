@@ -19,6 +19,8 @@ CTX_swap:
     movl 8(%eax), %ebp
     movl 12(%eax), %esi
     movl 16(%eax), %edi
+    # saving esp in tss.esp0
+    movl %esp, 0x20004
     # switch to new process
     ret
 
@@ -30,3 +32,14 @@ PROC_end:
 # call C function dealing with exit
     call exit
 # exit never returns
+
+# Switch to usermode
+    .globl JMP_usermode
+JMP_usermode:
+# set segments to USER_DS
+    movl $0x43, %eax
+	movl %eax, %ds
+	movl %eax, %es 
+	movl %eax, %fs 
+	movl %eax, %gs
+    iret

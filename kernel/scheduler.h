@@ -7,6 +7,8 @@
 #define NBPROC 30
 /** Size of kernel process stack in int32_t */
 #define NBSTACK 1024
+/** Maximun size of user process stack in bytes */
+#define MAXSTACK (1 << 30)
 
 #define MINPRIO 1
 #define MAXPRIO 256
@@ -70,7 +72,12 @@ struct process_t
     struct process_t* next_dead;
   } state_attr;
   int32_t registers[5];
-  int32_t stack[NBSTACK];
+  /** Kernel-space (Ring0) stack */
+  int32_t kernel_stack[NBSTACK];
+  /** Userspace (Ring3) stack */
+  int32_t* user_stack;
+  /** user_stack size in bytes */
+  unsigned long ssize;
 };
 
 /** Initialize process table */
@@ -95,6 +102,13 @@ int start(int (*pt_func)(void *), unsigned long ssize, int prio,
 /** Add process without triggering scheduler. Used to create initial processes */
 int start_background(int (*pt_func)(void *), unsigned long ssize, int prio,
           const char *name, void *arg);
+/** Add process in userspace */
+int start_user(int (*pt_func)(void *), unsigned long ssize, int prio,
+          const char *name, void *arg);
+/** Add process in userspace without triggering scheduler. Used to create initial processes */
+int start_user_background(int (*pt_func)(void *), unsigned long ssize, int prio,
+          const char *name, void *arg);
+
 void exit(int retval);
 int kill(int pid);
 

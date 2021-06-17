@@ -13,13 +13,14 @@ const uint32_t IRQ_LOW_MASK_DATA_PORT = 0x21;
 // IRQ_HIGH_MASK_DATA_PORT 0xA1
 
 extern void IT_PIT_handler();
+extern void IT_USR_handler();
 
 /** Writes handler on IDT */
-void set_handler(unsigned int nidt, void (*handler)(void)) {
+void set_handler(unsigned int nidt, void (*handler)(void), uint8_t ring_level) {
   uint16_t* const cell = IDT + nidt * 8;
   *(cell + 0) = (unsigned int)handler;
   *(cell + 1) = KERNEL_CS;
-  *(cell + 2) = 0x8E00;
+  *(cell + 2) = 0x8E00 | ((uint16_t)ring_level << 13);
   *(cell + 3) = (unsigned int)handler >> 16;
 }
 
@@ -59,7 +60,8 @@ unsigned long current_clock() { return pit_count; }
 
 void setup_interrupt_handlers() {
   if (!(CLOCKFREQ > SCHEDFREQ && CLOCKFREQ % SCHEDFREQ == 0)) panic("Invalid clock constants");
-  set_handler(32, IT_PIT_handler);
+  set_handler(32, IT_PIT_handler, 0);
   set_pit();
   set_mask(0, false);
+  set_handler(49, IT_USR_handler, 3);
 }

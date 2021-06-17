@@ -82,3 +82,30 @@ IT_PIT_handler:
 # end interrupt handler
     iret
 
+# Handles user system calls
+    .globl IT_USR_handler
+IT_USR_handler:
+# call C function dealing with interrupt
+	pushl %esi
+	pushl %edi
+	pushl %edx
+	pushl %ecx
+	pushl %ebx
+	pushl %eax
+	movl $0x18, %eax
+	movl %eax, %ds
+	movl %eax, %es 
+	movl %eax, %fs 
+	movl %eax, %gs
+	call user_IT
+	pushl %eax
+# return code in eax
+	movl $0x43, %eax
+	movl %eax, %ds
+	movl %eax, %es 
+	movl %eax, %fs 
+	movl %eax, %gs
+	popl %eax
+	addl $24, %esp
+# end interrupt handler
+    iret

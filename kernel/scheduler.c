@@ -1,7 +1,9 @@
 #include "cpu.h"
 #include "stdbool.h"
 #include "scheduler.h"
+#include "segment.h"
 #include "string.h"
+#include "user_stack_mem.h"
 #include "debug.h"
 #include "interrupt.h"
 #include "queues.h"
@@ -21,6 +23,8 @@ struct process_t* asleep_process_head = NULL;
 extern void CTX_swap(int* save, int* restore);
 /** Calls stop using captured return value */
 extern void PROC_end();
+/** Switch to usermode with iret */
+extern void JMP_usermode();
 
 /** Any process termination (kill, exit, return) */
 int stop(int pid, int retval);
@@ -63,6 +67,10 @@ void push_runnable(struct process_t* ps) {
 /** Add process to dead stack */
 void push_dead(struct process_t* ps) {
   assert(ps->state != PS_DEAD);
+  if (ps->user_stack != NULL) {
+    user_stack_free(ps->user_stack, ps->ssize);
+    ps->user_stack = NULL;
+  }
   ps->state = PS_DEAD;
   ps->state_attr.next_dead = dead_process_head;
   dead_process_head = ps;
@@ -132,16 +140,56 @@ int start_background(int (*pt_func)(void*), unsigned long ssize, int prio,
   ps->name = name;
   ps->prio = prio;
   ps->parent = getpid();
-  ps->stack[NBSTACK - 3] = (int32_t)pt_func;
-  ps->stack[NBSTACK - 2] = (int32_t)&PROC_end;
-  ps->stack[NBSTACK - 1] = (int32_t)arg;
-  ps->registers[1] = (int32_t)&ps->stack[NBSTACK - 3];
+  ps->ssize = 0;
+  //NOTE: no user_stack for kernel process
+  ps->user_stack = NULL;
+  ps->kernel_stack[NBSTACK - 3] = (int32_t)pt_func;
+  ps->kernel_stack[NBSTACK - 2] = (int32_t)&PROC_end;
+  ps->kernel_stack[NBSTACK - 1] = (int32_t)arg;
+  ps->registers[1] = (int32_t)&ps->kernel_stack[NBSTACK - 3];
   push_runnable(ps);
   return ps->pid;
 }
 int start(int (*pt_func)(void*), unsigned long ssize, int prio,
           const char* name, void* arg) {
   const int pid = start_background(pt_func, ssize, prio, name, arg);
+  fix_scheduler();
+  return pid;
+}
+
+int start_user_background(int (*pt_func)(void*), unsigned long ssize, int prio,
+                     const char* name, void* arg) {
+  if (ssize > MAXSTACK) return -2;
+
+  if (dead_process_head == NULL) return NOPID;
+  struct process_t* const ps = dead_process_head;
+  dead_process_head = dead_process_head->state_attr.next_dead;
+  assert(ps->state == PS_DEAD);
+
+  ps->name = name;
+  ps->prio = prio;
+  ps->parent = getpid();
+  ps->ssize = ssize + 2 * sizeof(int32_t);
+  ps->ssize += ps->ssize % sizeof(int32_t);
+  ps->user_stack = user_stack_alloc(ps->ssize);
+  if (ps->user_stack == NULL) return -1;
+
+  const unsigned long user_stack_size = ps->ssize / sizeof(int32_t);
+  ps->user_stack[user_stack_size - 2] = (int32_t)&PROC_end;
+  ps->user_stack[user_stack_size - 1] = (int32_t)arg;
+  ps->kernel_stack[NBSTACK - 6] = (int32_t)&JMP_usermode;
+  ps->kernel_stack[NBSTACK - 5] = (int32_t)pt_func;
+  ps->kernel_stack[NBSTACK - 4] = USER_CS;
+  ps->kernel_stack[NBSTACK - 3] = 0x202;
+  ps->kernel_stack[NBSTACK - 2] = (int32_t)&ps->user_stack[user_stack_size - 2];
+  ps->kernel_stack[NBSTACK - 1] = USER_DS;
+  ps->registers[1] = (int32_t)&ps->kernel_stack[NBSTACK - 6];
+  push_runnable(ps);
+  return ps->pid;
+}
+int start_user(int (*pt_func)(void*), unsigned long ssize, int prio,
+          const char* name, void* arg) {
+  const int pid = start_user_background(pt_func, ssize, prio, name, arg);
   fix_scheduler();
   return pid;
 }
