@@ -1,3 +1,12 @@
+# Process end on return
+    .globl PROC_end
+PROC_end:
+# read retval
+    pushl %eax
+# call C function dealing with exit
+    call exit
+# exit never returns
+
 # Trigger syscall
     .globl SYS_call
 # Function arguments :

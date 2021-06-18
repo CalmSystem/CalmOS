@@ -10,6 +10,8 @@ extern char first_stack[FIRST_STACK_SIZE];
 /* This is the first user process to start. It is mapped to the entry point
 of the user code. */
 int user_start(void *);
+/* This is the end of user memory space. */
+int user_end(void *);
 
 /* The kernel entry point */
 void kernel_start(void);

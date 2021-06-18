@@ -3,6 +3,7 @@
 #include "scheduler.h"
 #include "segment.h"
 #include "string.h"
+#include "start.h"
 #include "user_stack_mem.h"
 #include "debug.h"
 #include "interrupt.h"
@@ -21,8 +22,10 @@ struct process_t* asleep_process_head = NULL;
 
 /** Context switch assembly */
 extern void CTX_swap(int* save, int* restore);
-/** Calls stop using captured return value */
+/** Calls stop using captured return value (for kernel process) */
 extern void PROC_end();
+/** Calls stop using captured return value (for user process) */
+void* const PROC_end_user = user_start + 0x25;
 /** Switch to usermode with iret */
 extern void JMP_usermode();
 
@@ -175,7 +178,7 @@ int start_user_background(int (*pt_func)(void*), unsigned long ssize, int prio,
   if (ps->user_stack == NULL) return -1;
 
   const unsigned long user_stack_size = ps->ssize / sizeof(int32_t);
-  ps->user_stack[user_stack_size - 2] = (int32_t)&PROC_end;
+  ps->user_stack[user_stack_size - 2] = (int32_t)PROC_end_user;
   ps->user_stack[user_stack_size - 1] = (int32_t)arg;
   ps->kernel_stack[NBSTACK - 6] = (int32_t)&JMP_usermode;
   ps->kernel_stack[NBSTACK - 5] = (int32_t)pt_func;
