@@ -9,9 +9,8 @@
 
 #define IS_USER_PTR(p) (p >= (void*)user_start && p < (void*)user_end)
 //FIXME: process must segfault
-#define SEGFAULT BUG
-#define USER_PTR(p) \
-if (!IS_USER_PTR(p)) SEGFAULT();
+#define SEGFAULT() assert(0)
+#define USER_PTR(p) assert(IS_USER_PTR(p))
 #define USER_OR_NULL_PTR(p) \
 if (p != NULL) { USER_PTR(p); }
 
@@ -25,8 +24,7 @@ int user_IT(int call_id, void* p1, void* p2, void* p3, void* p4, void* p5) {
     case 10:
       //TODO: proper shell
       USER_PTR(p1);
-      USER_PTR(p2);
-      console_putbytes((const char*)p1, *(unsigned long*)p2);
+      console_putbytes((const char*)p1, (unsigned long)p2);
       return 0;
     case 11:
       //TODO: keyboard int cons_read(void)
@@ -69,20 +67,15 @@ int user_IT(int call_id, void* p1, void* p2, void* p3, void* p4, void* p5) {
       clock_settings((unsigned long*)p1, (unsigned long*)p2);
       return 0;
     case 51:
-      USER_PTR(p1);
-      *(unsigned long*)p1 = current_clock();
-      return 0;
+      return current_clock();
     case 52:
-      USER_PTR(p1);
-      //FIXME: gdb from here
-      wait_clock(*(unsigned long*)p1);
+      wait_clock((unsigned long)p1);
       return 0;
 
     case 60:
       USER_PTR(p1);
-      USER_PTR(p2);
       USER_PTR(p4);
-      return start_user((int (*)(void*))p1, *(unsigned long*)p2, (int)p3, (const char*)p4, p5);
+      return start_user((int (*)(void*))p1, (unsigned long)p2, (int)p3, (const char*)p4, p5);
     case 61:
       return kill((int)p1);
     case 62:

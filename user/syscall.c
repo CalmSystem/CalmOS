@@ -1,6 +1,8 @@
 #include "stddef.h"
 #include "syscall.h"
 
+//NOTE: On our CPU, sizeof(int) == sizeof(long)
+
 /** Trigger user interrupt (in handlers.S) */
 extern int SYS_call(int call_id, void* p1, void* p2, void* p3, void* p4, void* p5);
 
@@ -13,7 +15,7 @@ extern int SYS_call(int call_id, void* p1, void* p2, void* p3, void* p4, void* p
 
 void console_putbytes(const char *str, int size) { SYS_call_2(0, str, size); }
 
-void cons_write(const char *str, unsigned long size) { SYS_call_2(10, str, &size); }
+void cons_write(const char *str, unsigned long size) { SYS_call_2(10, str, size); }
 int cons_read(void) { return SYS_call_0(11); }
 void cons_echo(int on) { SYS_call_1(12, on); }
 
@@ -31,15 +33,11 @@ int preset(int fid) { return SYS_call_1(44, fid); }
 int psend(int fid, int message) { return SYS_call_2(45, fid, message); }
 
 void clock_settings(unsigned long *quartz, unsigned long *ticks) { SYS_call_2(50, quartz, ticks); }
-unsigned long current_clock(void) { 
-  unsigned long clock;
-  SYS_call_1(51, &clock);
-  return clock;
-}
-void wait_clock(unsigned long wakeup) { SYS_call_1(52, &wakeup); }
+unsigned long current_clock(void) { return SYS_call_0(51); }
+void wait_clock(unsigned long wakeup) { SYS_call_1(52, wakeup); }
 
 int start(int (*ptfunc)(void *), unsigned long ssize, int prio,
-          const char *name, void *arg) { return SYS_call_5(60, ptfunc, &ssize, prio, name, arg); }
+          const char *name, void *arg) { return SYS_call_5(60, ptfunc, ssize, prio, name, arg); }
 int kill(int pid) { return SYS_call_1(61, pid); }
 void exit(int retval) {
   SYS_call_1(62, retval);
