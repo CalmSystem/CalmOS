@@ -7,12 +7,17 @@
 #include "scheduler.h"
 #include "interrupt.h"
 
+#include "kbd.h"
+#include "queues.h"
+#include "keyboard.h"
+
 void* const IDT = (void*)0x1000;
 /** Mask table for IRQ 0 to 7. Handled with interrupt 32-47 */
 const uint32_t IRQ_LOW_MASK_DATA_PORT = 0x21;
 // IRQ_HIGH_MASK_DATA_PORT 0xA1
 
 extern void IT_PIT_handler();
+extern void IT_KEYBOARD_handler();
 extern void IT_USR_handler();
 
 /** Writes handler on IDT */
@@ -52,6 +57,11 @@ void tic_PIT() {
   }
 }
 
+void keyboard_IT(){
+  char c = inb(0x60);
+  do_scancode((int)c);
+}
+
 void clock_settings(unsigned long* quartz, unsigned long* ticks) {
   if (quartz != NULL) *quartz = QUARTZ;
   if (ticks != NULL) *ticks = (QUARTZ / CLOCKFREQ);
@@ -61,7 +71,11 @@ unsigned long current_clock() { return pit_count; }
 void setup_interrupt_handlers() {
   if (!(CLOCKFREQ > SCHEDFREQ && CLOCKFREQ % SCHEDFREQ == 0)) panic("Invalid clock constants");
   set_handler(32, IT_PIT_handler, 0);
+  set_handler(33, IT_KEYBOARD_handler, 0);
   set_pit();
   set_mask(0, false);
+  set_mask(1, false);
   set_handler(49, IT_USR_handler, 3);
+
+  keyboard_buffer = pcreate(CONSOLE_COL*CONSOLE_LIG);
 }

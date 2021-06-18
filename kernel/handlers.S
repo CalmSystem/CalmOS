@@ -76,6 +76,28 @@ IT_PIT_handler:
 # end interrupt handler
     iret
 
+# Handles keyboard interrupts
+    .globl IT_KEYBOARD_handler
+IT_KEYBOARD_handler:
+# save important registers
+	pushl %esi
+	pushl %edi
+	pushl %edx
+	pushl %ecx
+	pushl %ebx
+	pushl %eax
+# call C function dealing with interrupt
+    call keyboard_IT
+# restore important registers
+	popl %eax
+	popl %ebx
+	popl %ecx
+	popl %edx
+	popl %edi
+	popl %esi
+# end interrupt handler
+    iret
+
 # Handles user system calls
     .globl IT_USR_handler
 IT_USR_handler:

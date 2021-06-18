@@ -5,6 +5,8 @@
 void setup_interrupt_handlers();
 /** React to Programmable Interrupt Timer */
 void tic_PIT();
+/** React to Keyboard Interrupt */
+void keyboard_IT();
 
 void clock_settings(unsigned long *quartz, unsigned long *ticks);
 unsigned long current_clock();
