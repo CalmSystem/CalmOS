@@ -8,7 +8,6 @@
 #include "interrupt.h"
 
 #include "kbd.h"
-#include "queues.h"
 #include "keyboard.h"
 
 void* const IDT = (void*)0x1000;
@@ -58,6 +57,7 @@ void tic_PIT() {
 }
 
 void keyboard_IT(){
+  outb(0x20, 0x20);
   char c = inb(0x60);
   do_scancode((int)c);
 }
@@ -77,5 +77,5 @@ void setup_interrupt_handlers() {
   set_mask(1, false);
   set_handler(49, IT_USR_handler, 3);
 
-  keyboard_buffer = pcreate(CONSOLE_COL*CONSOLE_LIG);
+  init_keyboard_buffer();
 }
