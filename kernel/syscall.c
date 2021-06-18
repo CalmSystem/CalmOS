@@ -9,8 +9,9 @@
 
 #define IS_USER_PTR(p) (p >= (void*)user_start && p < (void*)user_end)
 //FIXME: process must segfault
-#define SEGFAULT() assert(0)
-#define USER_PTR(p) assert(IS_USER_PTR(p))
+#define SEGFAULT() return -42;
+#define USER_PTR(p) \
+if (!IS_USER_PTR(p)) SEGFAULT();
 #define USER_OR_NULL_PTR(p) \
 if (p != NULL) { USER_PTR(p); }
 
@@ -28,11 +29,9 @@ int user_IT(int call_id, void* p1, void* p2, void* p3, void* p4, void* p5) {
       return 0;
     case 11:
       //TODO: keyboard int cons_read(void)
-      SEGFAULT();
       return -1;
     case 12:
       //TODO: proper shell void cons_echo(int on)
-      SEGFAULT();
       return -1;
 
     case 20:

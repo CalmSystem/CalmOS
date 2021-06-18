@@ -64,21 +64,15 @@ SERV_EXC_TASK(31)
     .globl IT_PIT_handler
 IT_PIT_handler:
 # save important registers
-	pushl %esi
-	pushl %edi
-	pushl %edx
-	pushl %ecx
-	pushl %ebx
 	pushl %eax
+    pushl %edx
+    pushl %ecx
 # call C function dealing with interrupt
     call tic_PIT
 # restore important registers
-	popl %eax
-	popl %ebx
 	popl %ecx
-	popl %edx
-	popl %edi
-	popl %esi
+    popl %edx
+    popl %eax
 # end interrupt handler
     iret
 
@@ -92,14 +86,16 @@ IT_USR_handler:
 	pushl %ecx
 	pushl %ebx
 	pushl %eax
+# save data segments
 	movl $0x18, %eax
 	movl %eax, %ds
 	movl %eax, %es 
 	movl %eax, %fs 
 	movl %eax, %gs
 	call user_IT
-	pushl %eax
 # return code in eax
+# restore data segments
+	pushl %eax
 	movl $0x43, %eax
 	movl %eax, %ds
 	movl %eax, %es 

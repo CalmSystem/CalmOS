@@ -1,10 +1,10 @@
 # Context change
     .text
-    .globl CTX_swap
+    .globl CTX_switch
 # Function arguments :
 #   %esp + 4 : old context container address
 #   %esp + 8 : new context container address
-CTX_swap:
+CTX_switch:
     # saving old context
     movl 4(%esp), %eax
     movl %ebx, (%eax)
@@ -19,8 +19,6 @@ CTX_swap:
     movl 8(%eax), %ebp
     movl 12(%eax), %esi
     movl 16(%eax), %edi
-    # saving esp in tss.esp0
-    movl %esp, 0x20004
     # switch to new process
     ret
 

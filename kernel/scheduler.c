@@ -1,7 +1,7 @@
 #include "cpu.h"
 #include "stdbool.h"
 #include "scheduler.h"
-#include "segment.h"
+#include "boot/processor_structs.h"
 #include "string.h"
 #include "start.h"
 #include "user_stack_mem.h"
@@ -21,7 +21,7 @@ struct process_t* dead_process_head = NULL;
 struct process_t* asleep_process_head = NULL;
 
 /** Context switch assembly */
-extern void CTX_swap(int* save, int* restore);
+extern void CTX_switch(int* save, int* restore);
 /** Calls stop using captured return value (for kernel process) */
 extern void PROC_end();
 /** Calls stop using captured return value (for user process) */
@@ -172,7 +172,7 @@ int start_user_background(int (*pt_func)(void*), unsigned long ssize, int prio,
   ps->name = name;
   ps->prio = prio;
   ps->parent = getpid();
-  ps->ssize = ssize + 2 * sizeof(int32_t);
+  ps->ssize = ssize + 20 * sizeof(int32_t);
   ps->ssize += ps->ssize % sizeof(int32_t);
   ps->user_stack = user_stack_alloc(ps->ssize);
   if (ps->user_stack == NULL) return -1;
@@ -380,6 +380,8 @@ void tick_scheduler() {
       push_runnable(prev_process);
     }
     active_process->state = PS_RUNNING;
-    CTX_swap(prev_process->registers, active_process->registers);
+    // Save current process stack top address
+    tss.esp0 = (int32_t)&active_process->kernel_stack[NBSTACK-1];
+    CTX_switch(prev_process->registers, active_process->registers);
   }
 }
