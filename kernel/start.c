@@ -1,5 +1,6 @@
 #include "debugger.h"
 #include "stdio.h"
+#include "logo.h"
 #include "interrupt.h"
 #include "cpu.h"
 #include "scheduler.h"
@@ -34,13 +35,8 @@ int proc_keyboard(void *arg) {
 
 void kernel_start(void)
 {
-  printf("\f"  // Splash screen
-      "\t\t    ____      _            ___  ____  \n"
-      "\t\t   / ___|__ _| |_ __ ___  / _ \\/ ___| \n"
-      "\t\t  | |   / _` | | '_ ` _ \\| | | \\___ \\ \n"
-      "\t\t  | |__| (_| | | | | | | | |_| |___) |\n"
-      "\t\t   \\____\\__,_|_|_| |_| |_|\\___/|____/ \n"
-      "\t\t     Keep Calm and Avoid Assembly\n\n");
+  // Splash screen
+  printf(CALMOS_LOGO);
 
   // call_debugger(); useless with qemu -s -S
   setup_scheduler();

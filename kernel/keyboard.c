@@ -12,7 +12,7 @@ int get_buffer() { return keyboard_buffer; }
 void keyboard_data(char *str) {
   int buffer_count;
   int str_len = strlen(str);
-  if (echo_on) echo(str, str_len);
+  if (echo_on || *str == '\r') echo(str, str_len);
   for (int i = 0; i < str_len; i++) {
     char c = str[i];
     pcount(keyboard_buffer, &buffer_count);

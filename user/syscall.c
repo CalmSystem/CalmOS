@@ -28,6 +28,7 @@ void beep(int freq, float delay) {
 
 int getpid(void) { return SYS_call_0(20); }
 int waitpid(int pid, int *retval) { return SYS_call_2(21, pid, retval); }
+int processes_status(struct process_status_t *status, int count) { return SYS_call_2(22, status, count); }
 
 int chprio(int pid, int newprio) { return SYS_call_2(30, pid, newprio); }
 int getprio(int pid) { return SYS_call_1(31, pid); }
@@ -38,6 +39,7 @@ int pdelete(int fid) { return SYS_call_1(42, fid); }
 int preceive(int fid, int *message) { return SYS_call_2(43, fid, message); }
 int preset(int fid) { return SYS_call_1(44, fid); }
 int psend(int fid, int message) { return SYS_call_2(45, fid, message); }
+int queues_status(struct queue_status_t *status, int count) { return SYS_call_2(46, status, count); }
 
 void clock_settings(unsigned long *quartz, unsigned long *ticks) { SYS_call_2(50, quartz, ticks); }
 unsigned long current_clock(void) { return SYS_call_0(51); }
@@ -50,3 +52,4 @@ void exit(int retval) {
   SYS_call_1(62, retval);
   while(1); //noreturn
 }
+void reboot() { SYS_call_0(63); }

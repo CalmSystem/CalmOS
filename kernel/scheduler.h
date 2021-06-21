@@ -2,9 +2,8 @@
 #define SCHEDULER_H_
 
 #include "stdint.h"
+#include "system.h"
 
-#define NOPID -1
-#define NBPROC 30
 /** Size of kernel process stack in int32_t */
 #define NBSTACK 1024
 /** Maximun size of user process stack in bytes */
@@ -12,29 +11,6 @@
 
 #define MINPRIO 1
 #define MAXPRIO 256
-
-enum process_state_t {
-  /** Reusable */
-  PS_DEAD = -2,
-  /** Stopped and waiting parent */
-  PS_ZOMBIE = -1,
-  /** Can run */
-  PS_RUNNABLE = 0,
-  /** Currently running */
-  PS_RUNNING,
-  /** Waiting clock */
-  PS_ASLEEP,
-  /** Waiting child end */
-  PS_WAIT_CHILD,
-  /** Waiting on an empty queue */
-  PS_WAIT_QUEUE_EMPTY,
-  /** Waiting on a full queue */
-  PS_WAIT_QUEUE_FULL,
-  /** Waiting semaphore */
-  // TODO: PS_WAIT_LOCK,
-  /** Waiting interrupt */
-  // TODO: PS_WAIT_IO
-};
 
 struct process_t
 {
@@ -117,5 +93,8 @@ int waitpid(int pid, int *retvalp);
 
 void remove_runnable(struct process_t* ps);
 void push_runnable(struct process_t* ps);
+
+/** Get N firsts processes status. Returns total processes count */
+int processes_status(struct process_status_t *status, int count);
 
 #endif /*SCHEDULER_H_*/

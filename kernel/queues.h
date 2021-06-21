@@ -2,8 +2,7 @@
 #define QUEUES_H_
 
 #include "scheduler.h"
-
-#define NBQUEUE 300
+#include "system.h"
 
 /** Writes in "count" parameter : 
         - Number of messages in queue fid + number of bloqued processes on full queue
@@ -42,5 +41,8 @@ void queue_reorder_full_process(struct process_t *process);
 void queue_remove_empty_process(struct process_t *process);
 /** Remove process from full empty waiting list */
 void queue_remove_full_process(struct process_t *process);
+
+/** Get N firsts queues status. Returns total queues count */
+int queues_status(struct queue_status_t *status, int count);
 
 #endif /*QUEUES_H_*/

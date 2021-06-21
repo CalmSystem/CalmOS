@@ -242,3 +242,22 @@ int psend(int fid, int message) {
     return 0;
   }
 }
+
+/** Get N firsts queues status. Returns total queues count */
+int queues_status(struct queue_status_t *status, int count) {
+  if (count < 0) return -1;
+
+  int alive = 0;
+  for (int fid = 0; fid < NBQUEUE; fid++) {
+    struct queue_t *const q = &queues[fid];
+    if (is_queue_free(q)) continue;
+
+    if (alive < count) {
+      status[alive].fid = fid;
+      status[alive].capacity = q->capacity;
+      pcount(fid, &status[alive].count);
+    }
+    alive++;
+  }
+  return alive;
+}

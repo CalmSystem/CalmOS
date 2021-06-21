@@ -385,3 +385,25 @@ void tick_scheduler() {
     CTX_switch(prev_process->registers, active_process->registers);
   }
 }
+
+int processes_status(struct process_status_t *status, int count) {
+  if (count < 0) return -1;
+
+  int alive = 0;
+  for (int i = 0; i < NBPROC; i++) {
+    struct process_t* const ps = &processes[i];
+    if (ps->state == PS_DEAD) continue;
+
+    if (alive < count) {
+      status[alive].pid = ps->pid;
+      status[alive].parent = ps->parent;
+      strncpy(status[alive].name, ps->name, 19);
+      status[alive].name[19] = '\0';
+      status[alive].prio = ps->prio;
+      status[alive].state = ps->state;
+      status[alive].ssize = ps->ssize;
+    }
+    alive++;
+  }
+  return alive;
+}

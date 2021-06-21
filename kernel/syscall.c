@@ -7,6 +7,7 @@
 #include "keyboard.h"
 #include "beep.h"
 #include "syscall.h"
+#include "boot/processor_structs.h"
 #include "debug.h"
 
 #define IS_USER_PTR(p) (p >= (void*)user_start && p < (void*)user_end)
@@ -44,6 +45,9 @@ int user_IT(int call_id, void* p1, void* p2, void* p3, void* p4, void* p5) {
     case 21:
       USER_OR_NULL_PTR(p2);
       return waitpid((int)p1, (int*)p2);
+    case 22:
+      USER_PTR(p1);
+      return processes_status((struct process_status_t*)p1, (int)p2);
 
     case 30:
       return chprio((int)p1, (int)p2);
@@ -64,6 +68,9 @@ int user_IT(int call_id, void* p1, void* p2, void* p3, void* p4, void* p5) {
       return preset((int)p1);
     case 45:
       return psend((int)p1, (int)p2);
+    case 46:
+      USER_PTR(p1);
+      return queues_status((struct queue_status_t*)p1, (int)p2);
 
     case 50:
       USER_OR_NULL_PTR(p1);
@@ -85,6 +92,9 @@ int user_IT(int call_id, void* p1, void* p2, void* p3, void* p4, void* p5) {
     case 62:
       exit((int)p1);
       return 0;
+    case 63:
+      reboot();
+      return -1;
 
     default:
       SEGFAULT();
