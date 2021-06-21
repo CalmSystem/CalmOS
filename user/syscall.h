@@ -3,6 +3,10 @@ void console_putbytes(const char *str, int size); // 0
 void cons_write(const char *str, unsigned long size);  // 10
 int cons_read(void);                                   // 11
 void cons_echo(int on);                                // 12
+/** Read char until \r char. Unread chars are keeped in an internal buffer */
+unsigned long cons_readline(char *string, unsigned long length); // 13
+/** Beep buzzer. delay in second */
+void beep(int freq, float delay); // 14
 
 int getpid(void);                   // 20
 int waitpid(int pid, int *retval);  // 21

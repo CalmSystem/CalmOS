@@ -4,6 +4,8 @@
 #include "scheduler.h"
 #include "interrupt.h"
 #include "queues.h"
+#include "keyboard.h"
+#include "beep.h"
 #include "syscall.h"
 #include "debug.h"
 
@@ -23,16 +25,19 @@ int user_IT(int call_id, void* p1, void* p2, void* p3, void* p4, void* p5) {
       return 0;
 
     case 10:
-      //TODO: proper shell
       USER_PTR(p1);
-      console_putbytes((const char*)p1, (unsigned long)p2);
-      return 0;
+      return cons_write((const char*)p1, (long)p2);
     case 11:
-      //TODO: keyboard int cons_read(void)
-      return -1;
+      return cons_read();
     case 12:
-      //TODO: proper shell void cons_echo(int on)
-      return -1;
+      cons_echo((int)p1);
+      return 0;
+    case 13:
+      USER_PTR(p1);
+      return cons_readline((char*)p1, (unsigned long)p2);
+    case 14:
+      beep((int)p1, *(float*)&p2);
+      return 0;
 
     case 20:
       return getpid();

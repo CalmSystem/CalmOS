@@ -18,6 +18,13 @@ void console_putbytes(const char *str, int size) { SYS_call_2(0, str, size); }
 void cons_write(const char *str, unsigned long size) { SYS_call_2(10, str, size); }
 int cons_read(void) { return SYS_call_0(11); }
 void cons_echo(int on) { SYS_call_1(12, on); }
+unsigned long cons_readline(char *string, unsigned long length) { return SYS_call_2(13, string, length); }
+void beep(int freq, float delay) {
+  // float to void* reinterpt cast
+  union { float vf; void *vp; } cast;
+  cast.vf = delay;
+  SYS_call_2(14, freq, cast.vp);
+}
 
 int getpid(void) { return SYS_call_0(20); }
 int waitpid(int pid, int *retval) { return SYS_call_2(21, pid, retval); }

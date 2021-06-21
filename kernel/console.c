@@ -2,6 +2,7 @@
 #include "stdint.h"
 #include "console.h"
 #include "string.h"
+#include "beep.h"
 
 uint16_t* const DISPLAY_START = (uint16_t*)0xB8000;
 const uint16_t CURSOR_PORT_CMD = 0x3D4;
@@ -63,6 +64,10 @@ void wrap_cursor() {
 void handle_char(char c) {
   switch (c)
   {
+  case 7: //beep
+    beep(1000, .1f);
+    break;
+
   case 8: //back
     if (state.col > 0) state.col--;
     break;
