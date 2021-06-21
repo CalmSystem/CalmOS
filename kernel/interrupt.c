@@ -54,7 +54,7 @@ void tic_PIT() {
 
 void clock_settings(unsigned long* quartz, unsigned long* ticks) {
   if (quartz != NULL) *quartz = QUARTZ;
-  if (ticks != NULL) *ticks = CLOCKFREQ;
+  if (ticks != NULL) *ticks = (QUARTZ / CLOCKFREQ);
 }
 unsigned long current_clock() { return pit_count; }
 

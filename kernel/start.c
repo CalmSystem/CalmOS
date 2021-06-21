@@ -8,10 +8,11 @@
 
 int proc_wait(void* arg) {
   const unsigned long seconds = (unsigned long)arg;
-  unsigned long freq;
-  clock_settings(NULL, &freq);
+  unsigned long quartz;
+  unsigned long ticks;
+  clock_settings(&quartz, &ticks);
   while (1) {
-    wait_clock(current_clock() + seconds * freq);
+    wait_clock(current_clock() + seconds * (quartz / ticks));
     printf("Ping every %lu seconds\n", seconds);
   }
 }
@@ -33,8 +34,8 @@ void kernel_start(void)
   // NOTE: Kernel tests
   // test_all();
   start_user_background(user_start, 4000, 1, "user_start", NULL);
-  // start_background(proc_wait, 128, 1, "proc_fizz", (void*)3);
-  // start_background(proc_wait, 128, 1, "proc_buzz", (void*)5);
+  start_background(proc_wait, 128, 1, "proc_fizz", (void*)3);
+  start_background(proc_wait, 128, 1, "proc_buzz", (void*)5);
 
   idle();
 
