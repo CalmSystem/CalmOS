@@ -13,7 +13,8 @@ void keyboard_data(char *str);
 // void kbd_leds(unsigned char leds);
 
 void cons_echo(int on);
-unsigned long cons_read(char *string, unsigned long length);
+int cons_read(void);
+unsigned long cons_readline(char *string, unsigned long length);
 int cons_write(const char *str, long size);
 
 #endif /*KEYBOARD_H_*/

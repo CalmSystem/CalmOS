@@ -38,23 +38,38 @@ void init_keyboard_buffer() {
     keyboard_buffer = pcreate(BUFFER_SIZE);
 }
 
-unsigned long cons_read(char *string, unsigned long length) {
+int cons_read(void) {
+    int msg;
+    preceive(keyboard_buffer, &msg);
+    return msg;
+}
+
+// TODO: doc
+unsigned long cons_readline(char *string, unsigned long length) {
     if(length == 0) return 0;
     int msg;
     int buf_save = pcreate(BUFFER_SIZE);
     unsigned long msg_len = 0;
     preceive(keyboard_buffer, &msg);
     while (msg != 13) {
-        if(msg_len >= length) {
+        if(msg == 127) {
+            if (msg_len > length) {
+                psend(buf_save, msg);
+            } else if (msg_len != 0) {
+                string--;
+                *string = '\0';
+            }
+            msg_len--;
+        } else if (msg_len >= length) {
             psend(buf_save, msg);
+            msg_len++;
         } else {
             *string = (char)msg;
             string++;
+            msg_len++;
         }
-        msg_len++;
         preceive(keyboard_buffer, &msg);
     }
-
     if(msg_len >= length) {
         preset(keyboard_buffer);
         int count;
@@ -64,7 +79,9 @@ unsigned long cons_read(char *string, unsigned long length) {
             psend(keyboard_buffer, msg);
         }
         // If we want auto relaunch...
-        psend(keyboard_buffer, 13);
+        // if(msg_len == length) {
+            psend(keyboard_buffer, 13);
+        // }
     }
 
     return (msg_len < length) ? msg_len : length;

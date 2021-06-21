@@ -22,7 +22,7 @@ int proc_wait(void* arg) {
 int proc_keyboard(void *arg) {
   while(1) {
     char str[10] = {0};
-    int i = cons_read(str, 10);
+    int i = cons_readline(str, 10);
     printf("### Read: %s  (size: %d -> ", str, i);
     for(int j = 0; j < i; j++) {
       printf("%d,", str[j]);
