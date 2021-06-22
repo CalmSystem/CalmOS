@@ -26,5 +26,7 @@ void _exit();
 void help();
 /** Display the logo */
 void logo();
+/** Play a short beep */
+void _beep();
 
 #endif

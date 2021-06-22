@@ -2,6 +2,7 @@
 #include "queues.h"
 #include "stdio.h"
 #include "string.h"
+#include "beep.h"
 #include "keyboard.h"
 
 int keyboard_buffer;
@@ -19,7 +20,7 @@ void keyboard_data(char *str) {
     if (buffer_count != BUFFER_SIZE) {
       psend(keyboard_buffer, (int)c);
     } else {
-      console_putbytes("\a", 1);
+      async_beep(1000, .1);
       return;
     }
   }
@@ -72,6 +73,11 @@ unsigned long cons_readline(char *string, unsigned long length) {
   return (msg_len < length) ? msg_len : length;
 }
 
+int random_beep(void* arg){
+  console_putbytes("\a", 1);
+  return (int)arg;
+}
+
 int echo(const char *str, long size) {
   for (int i = 0; i < size; i++) {
     char c = str[i];
@@ -82,7 +88,13 @@ int echo(const char *str, long size) {
       c = 10;  // \n
       console_putbytes(&c, 1);
     } else if (char_code < 32) {
-      printf("^%c", char_code + 64);
+      if(char_code == 12) {
+        console_putbytes("\f", 1);
+      } else if (char_code == 7){
+        async_beep(1000, .1);
+      } else {
+        printf("^%c", char_code + 64);
+      }
     } else if (char_code == 127) {
       console_putbytes("\b \b", 3);
     }

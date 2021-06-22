@@ -21,8 +21,9 @@ static struct {
   {"reboot", reboot, "Reboot the system"},
   {"help", help, "Display this help screen"},
   {"logo", logo, "Display the logo"},
+  {"beep", _beep, "Play a short beep"},
   {"exit", _exit, "Close this shell"},
-  { 0, 0, 0 }
+  {0, 0, 0}
 };
 
 void shell() {
@@ -106,3 +107,4 @@ void help() {
   }
 }
 void logo() { printf(CALMOS_LOGO); }
+void _beep() { beep(1000, .1f); }

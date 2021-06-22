@@ -5,10 +5,10 @@
 #include "cpu.h"
 #include "console.h"
 #include "scheduler.h"
-#include "interrupt.h"
-
 #include "kbd.h"
 #include "keyboard.h"
+#include "beep.h"
+#include "interrupt.h"
 
 void* const IDT = (void*)0x1000;
 /** Mask table for IRQ 0 to 7. Handled with interrupt 32-47 */
@@ -51,6 +51,9 @@ void tic_PIT() {
   char time_str[9]; // space for "HH:MM:SS\0"
   sprintf(time_str, "%02ld:%02ld:%02ld", seconds / (60 * 60), (seconds / 60) % 60, seconds % 60);
   console_putbytes_at(time_str, 8, CONSOLE_COL-8, 0);
+
+  check_buzzer();
+
   if (pit_count % (CLOCKFREQ / SCHEDFREQ) == 0) {
     tick_scheduler();
   }
