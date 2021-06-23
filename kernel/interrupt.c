@@ -17,6 +17,7 @@ const uint32_t IRQ_LOW_MASK_DATA_PORT = 0x21;
 
 extern void IT_PIT_handler();
 extern void IT_KEYBOARD_handler();
+extern void IT_FLOPPY_handler();
 extern void IT_USR_handler();
 
 /** Writes handler on IDT */
@@ -74,11 +75,15 @@ unsigned long current_clock() { return pit_count; }
 void setup_interrupt_handlers() {
   if (!(CLOCKFREQ > SCHEDFREQ && CLOCKFREQ % SCHEDFREQ == 0)) panic("Invalid clock constants");
   set_handler(32, IT_PIT_handler, 0);
-  set_handler(33, IT_KEYBOARD_handler, 0);
   set_pit();
   set_mask(0, false);
-  set_mask(1, false);
-  set_handler(49, IT_USR_handler, 3);
 
   init_keyboard_buffer();
+  set_handler(33, IT_KEYBOARD_handler, 0);
+  set_mask(1, false);
+
+  set_handler(38, IT_FLOPPY_handler, 0);
+  set_mask(6, false);
+
+  set_handler(49, IT_USR_handler, 3);
 }

@@ -60,43 +60,25 @@ SERV_EXC_TASK(30)
 SERV_EXC_TASK(31)
 
 # Interrupt handlers
-# Handles programable clock interrupts
-    .globl IT_PIT_handler
-IT_PIT_handler:
-# save important registers
-	pushl %eax
-    pushl %edx
-    pushl %ecx
-# call C function dealing with interrupt
-    call tic_PIT
-# restore important registers
-	popl %ecx
-    popl %edx
-    popl %eax
-# end interrupt handler
+#define IT_HANDLER(kind, target) \
+    .globl IT_##kind##_handler; \
+IT_##kind##_handler: \
+/* save important registers */ \
+    pushl %eax; \
+    pushl %edx; \
+    pushl %ecx; \
+/* call C function dealing with interrupt */ \
+    call target; \
+/* restore important registers */ \
+    popl %ecx; \
+    popl %edx; \
+    popl %eax; \
+/* end interrupt handler */ \
     iret
 
-# Handles keyboard interrupts
-    .globl IT_KEYBOARD_handler
-IT_KEYBOARD_handler:
-# save important registers
-	pushl %esi
-	pushl %edi
-	pushl %edx
-	pushl %ecx
-	pushl %ebx
-	pushl %eax
-# call C function dealing with interrupt
-    call keyboard_IT
-# restore important registers
-	popl %eax
-	popl %ebx
-	popl %ecx
-	popl %edx
-	popl %edi
-	popl %esi
-# end interrupt handler
-    iret
+IT_HANDLER(PIT, tic_PIT)
+IT_HANDLER(KEYBOARD, keyboard_IT)
+IT_HANDLER(FLOPPY, floppy_IT)
 
 # Handles user system calls
     .globl IT_USR_handler

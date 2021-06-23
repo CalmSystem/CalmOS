@@ -72,6 +72,10 @@ SECTIONS {
 	gdt = 0x10000;
 	tss = 0x20000;
 
+	/* Direct memory access */
+	floppy_dmalen = 0x4800;
+	floppy_dmabuf = 0x8000;
+
 	/* Beginning of kernel memory heap */
 	mem_heap = _end;
 

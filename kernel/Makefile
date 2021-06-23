@@ -54,7 +54,7 @@ include build/utils.mk
 
 ### Compilation sources ###
 # Use DIRS variable to add source sub-directories
-DIRS := . boot
+DIRS := . boot driver
 SRC  :=	\
 	$(call all-asm-files-under, $(DIRS)) \
 	$(call all-c-files-under , $(DIRS))
