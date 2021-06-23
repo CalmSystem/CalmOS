@@ -98,6 +98,28 @@ IT_KEYBOARD_handler:
 # end interrupt handler
     iret
 
+# Handles mouse interrupts
+    .globl IT_MOUSE_handler
+IT_MOUSE_handler:
+# save important registers
+	pushl %esi
+	pushl %edi
+	pushl %edx
+	pushl %ecx
+	pushl %ebx
+	pushl %eax
+# call C function dealing with interrupt
+    call mouse_IT
+# restore important registers
+	popl %eax
+	popl %ebx
+	popl %ecx
+	popl %edx
+	popl %edi
+	popl %esi
+# end interrupt handler
+    iret
+
 # Handles user system calls
     .globl IT_USR_handler
 IT_USR_handler:

@@ -8,6 +8,9 @@ void tic_PIT();
 /** React to Keyboard Interrupt */
 void keyboard_IT();
 
+/** React to Mouse Interrupt */
+void mouse_IT();
+
 void clock_settings(unsigned long *quartz, unsigned long *ticks);
 unsigned long current_clock();
 
