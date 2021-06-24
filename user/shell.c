@@ -10,10 +10,8 @@ static struct {
 	const char *name;
 	void (*f) (void);
   const char* desc;
-} commands[] = {
+} keywords[] = {
   {"ps", ps, "Display processes in the system"},
-  {"echo on", echo_on, "Enable echo of the terminal"},
-  {"echo off", echo_off, "Disable echo of the terminal"},
   {"clear", clear, "Clear the terminal"},
   {"uptime", uptime, "Display how long the system has been up"},
   {"test", test, "Launch the test interface"},
@@ -23,6 +21,14 @@ static struct {
   {"logo", logo, "Display the logo"},
   {"beep", _beep, "Play a short beep"},
   {"exit", _exit, "Close this shell"},
+  {0, 0, 0}
+};
+static struct {
+	const char *name;
+	void (*f) (const char*);
+  const char* desc;
+} commands[] = {
+  {"echo", echo, "Toggle echo of the terminal"},
   {"cd", cd, "Change current directory"},
   {"ls", ls, "List files in directory"},
   {"cat", cat, "Print file content"},
@@ -30,13 +36,23 @@ static struct {
 };
 
 void shell() {
+  const char NONE = '\0';
   while (1) {
     char buffer[CONSOLE_COL] = {0};
     printf("> ");
     cons_readline(buffer, CONSOLE_COL);
+    char* firstWord = strchr(buffer, ' ');
+    if (firstWord) *firstWord = '\0';
+  
+    for (int i = 0; keywords[i].name; i++) {
+      if (strcmp(keywords[i].name, buffer) == 0) {
+        keywords[i].f();
+        break;
+      }
+    }
     for (int i = 0; commands[i].name; i++) {
       if (strcmp(commands[i].name, buffer) == 0) {
-        commands[i].f();
+        commands[i].f(firstWord ? firstWord + 1 : &NONE);
         break;
       }
     }
@@ -78,8 +94,27 @@ void qs() {
     printf("%d\t%-15d\t%d\n", q->fid, q->capacity, q->count);
   }
 }
-void echo_on() { cons_echo(1); }
-void echo_off() { cons_echo(0); }
+
+static struct {
+	const char *name;
+	int val;
+} echo_args[] = {
+  {"0", 0},
+  {"1", 1},
+  {"on", 1},
+  {"off", 0},
+  {0, 0}
+};
+void echo(const char* arg) {
+  for (int i = 0; echo_args[i].name; i++) {
+    if (strcmp(arg, echo_args[i].name) == 0) {
+      cons_echo(echo_args[i].val);
+      return;
+    }
+  }
+  printf("Invalid arg\n");
+}
+
 void clear() { console_putbytes("\f", 1); }
 void uptime() {
   unsigned long quartz;
@@ -105,6 +140,9 @@ void sys_info() {
 }
 void _exit() { exit(0); }
 void help() {
+  for (int i = 0; keywords[i].name; i++) {
+    printf("  %-14s\t%s\n", keywords[i].name, keywords[i].desc);
+  }
   for(int i = 0; commands[i].name; i++) {
     printf("  %-14s\t%s\n", commands[i].name, commands[i].desc);
   }
@@ -113,9 +151,24 @@ void logo() { printf(CALMOS_LOGO); }
 void _beep() { beep(1000, .1f); }
 
 DIR pwd = {0};
-void ls() {
+int find_file(FILE* f, const char* name) {
+  for (size_t i = 0;; i++) {
+    if (fs_list(pwd, f, 1, i) <= 0) return 0;
+    if (strcmp(name, f->name) == 0) return 1;
+  }
+}
+void ls(const char* path) {
   FILE files[20];
-  int nfiles = fs_list(pwd, &files[0], 20, 0);
+  DIR root = pwd;
+  if (path && *path != '\0') {
+    if (find_file(&files[0], path) && (files[0].attribs & FILE_DIRECTORY)) {
+      root.clusterIndex = files[0].clusterIndex;
+    } else {
+      cons_write("Directory not found\n", 20);
+    }
+  }
+
+  int nfiles = fs_list(root, &files[0], 20, 0);
   for (int i = 0; i < nfiles; i++) {
     struct fat_datetime_t d = files[i].modifiedAt;
     printf("%c %8d \t%02d/%02d/%04d %02d:%02d \t%s\n",
@@ -124,18 +177,9 @@ void ls() {
            d.time.minutes, files[i].name);
   }
 }
-int prompt_file(FILE *f) {
-  char name[FILE_SHORTNAME_SIZE+1] = {0};
-  cons_readline(name, FILE_SHORTNAME_SIZE);
-  for (size_t i = 0;; i++) {
-    if (fs_list(pwd, f, 1, i) <= 0) return 0;
-    if (strcmp(name, f->name) == 0) return 1;
-  }
-}
-void cat() {
+void cat(const char* path) {
   FILE f;
-  printf("File: ");
-  if (prompt_file(&f) && !(f.attribs & FILE_DIRECTORY)) {
+  if (path && *path != '\0' && find_file(&f, path) && !(f.attribs & FILE_DIRECTORY)) {
     char buffer[CONSOLE_COL];
     for (size_t offset = 0; offset < f.size; offset += CONSOLE_COL) {
       memset(buffer, 0, CONSOLE_COL);
@@ -147,10 +191,9 @@ void cat() {
     cons_write("File not found\n", 15);
   }
 }
-void cd() {
+void cd(const char* path) {
   FILE f;
-  printf("Dir: ");
-  if (prompt_file(&f) && (f.attribs & FILE_DIRECTORY)) {
+  if (path && *path != '\0' && find_file(&f, path) && (f.attribs & FILE_DIRECTORY)) {
     pwd.clusterIndex = f.clusterIndex;
   } else {
     cons_write("Directory not found\n", 20);

@@ -8,10 +8,6 @@ int shell_proc(void *);
 
 /** Display processes in the system */
 void ps();
-/** Enable echo of the terminal */
-void echo_on();
-/** Disable echo of the terminal */
-void echo_off();
 /** Clear the terminal */
 void clear();
 /** Display how long the system has been up */
@@ -28,11 +24,13 @@ void help();
 void logo();
 /** Play a short beep */
 void _beep();
+/** Toggle echo of the terminal */
+void echo(const char *);
 /** Change current directory */
-void cd();
+void cd(const char*);
 /** List files in directory */
-void ls();
+void ls(const char*);
 /** Print file content */
-void cat();
+void cat(const char*);
 
 #endif
