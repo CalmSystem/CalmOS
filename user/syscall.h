@@ -1,6 +1,7 @@
 #ifndef __SYSCALL_H__
 #define __SYSCALL_H__
 #include "system.h"
+#include "file.h"
 
 void console_putbytes(const char *str, int size); // 0
 
@@ -38,6 +39,19 @@ int start(int (*ptfunc)(void *), unsigned long ssize, int prio,
 int kill(int pid);                       // 61
 void exit(int retval);                   // 62
 /** Restart whole system */
-void reboot();                             // 63
+void reboot();                           // 63
+
+/** Get top level folder */
+DIR fs_root();                                                              // 70
+/** Get file list in directory.
+ * Return error or number of files.
+ * Takes an array of file_t */
+int fs_list(const DIR dir, FILE *files, size_t nfiles, size_t offset);      // 71
+/** Get full filename. len does not include \0 */
+void fs_file_name(const FILE *f, char *name, size_t len);                   // 72
+/** Read file part. Return error or readded size */
+int fs_read(void *dst, const FILE *f, size_t offset, size_t len);           // 73
+/** Write file part. Return error or written size */
+int fs_write(const FILE *f, size_t offset, const void *src, size_t len);    //74
 
 #endif

@@ -8,6 +8,7 @@
 #include "beep.h"
 #include "syscall.h"
 #include "boot/processor_structs.h"
+#include "filesystem.h"
 #include "debug.h"
 
 #define IS_USER_PTR(p) (p >= (void*)user_start && p < (void*)user_end)
@@ -95,6 +96,28 @@ int user_IT(int call_id, void* p1, void* p2, void* p3, void* p4, void* p5) {
     case 63:
       reboot();
       return -1;
+
+    case 70:
+      USER_PTR(p1);
+      *(DIR*)p1 = fs_root();
+      return 0;
+    case 71:
+      USER_PTR(p1);
+      USER_PTR(p2);
+      return fs_list(*(DIR*)p1, (FILE *)p2, (size_t)p3, (size_t)p4);
+    case 72:
+      USER_PTR(p1);
+      USER_PTR(p2);
+      fs_file_name((const FILE*)p1, (char*)p2, (size_t)p2);
+      return 0;
+    case 73:
+      USER_PTR(p1);
+      USER_PTR(p2);
+      return fs_read(p1, (const FILE*)p2, (size_t)p3, (size_t)p4);
+    case 74:
+      USER_PTR(p1);
+      USER_PTR(p3);
+      return fs_write((const FILE*)p1, (size_t)p2, p3, (size_t)p4);
 
     default:
       SEGFAULT();

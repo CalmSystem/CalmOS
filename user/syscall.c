@@ -53,3 +53,21 @@ void exit(int retval) {
   while(1); //noreturn
 }
 void reboot() { SYS_call_0(63); }
+
+DIR fs_root() {
+  DIR ret = {0};
+  SYS_call_1(70, &ret);
+  return ret;
+};
+int fs_list(const DIR dir, FILE *files, size_t nfiles, size_t offset) {
+  return SYS_call_4(71, &dir, files, nfiles, offset);
+}
+void fs_file_name(const FILE *f, char *name, size_t len) {
+  SYS_call_3(72, f, name, len);
+}
+int fs_read(void *dst, const FILE *f, size_t offset, size_t len) {
+  return SYS_call_4(73, dst, f, offset, len);
+}
+int fs_write(const FILE *f, size_t offset, const void *src, size_t len) {
+  return SYS_call_4(74, f, offset, src, len);
+}

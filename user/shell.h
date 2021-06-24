@@ -28,5 +28,11 @@ void help();
 void logo();
 /** Play a short beep */
 void _beep();
+/** Change current directory */
+void cd();
+/** List files in directory */
+void ls();
+/** Print file content */
+void cat();
 
 #endif

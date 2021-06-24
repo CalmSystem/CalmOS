@@ -23,6 +23,9 @@ static struct {
   {"logo", logo, "Display the logo"},
   {"beep", _beep, "Play a short beep"},
   {"exit", _exit, "Close this shell"},
+  {"cd", cd, "Change current directory"},
+  {"ls", ls, "List files in directory"},
+  {"cat", cat, "Print file content"},
   {0, 0, 0}
 };
 
@@ -108,3 +111,48 @@ void help() {
 }
 void logo() { printf(CALMOS_LOGO); }
 void _beep() { beep(1000, .1f); }
+
+DIR pwd = {0};
+void ls() {
+  FILE files[20];
+  int nfiles = fs_list(pwd, &files[0], 20, 0);
+  for (int i = 0; i < nfiles; i++) {
+    struct fat_datetime_t d = files[i].modifiedAt;
+    printf("%c %8d \t%02d/%02d/%04d %02d:%02d \t%s\n",
+           files[i].attribs & FILE_DIRECTORY ? 'd' : '-', files[i].size,
+           d.date.day, d.date.month, d.date.year + FAT_YEAR_OFFSET, d.time.hour,
+           d.time.minutes, files[i].name);
+  }
+}
+int prompt_file(FILE *f) {
+  char name[FILE_SHORTNAME_SIZE+1] = {0};
+  cons_readline(name, FILE_SHORTNAME_SIZE);
+  for (size_t i = 0;; i++) {
+    if (fs_list(pwd, f, 1, i) <= 0) return 0;
+    if (strcmp(name, f->name) == 0) return 1;
+  }
+}
+void cat() {
+  FILE f;
+  printf("File: ");
+  if (prompt_file(&f) && !(f.attribs & FILE_DIRECTORY)) {
+    char buffer[CONSOLE_COL];
+    for (size_t offset = 0; offset < f.size; offset += CONSOLE_COL) {
+      memset(buffer, 0, CONSOLE_COL);
+      int size = fs_read(buffer, &f, offset, CONSOLE_COL);
+      if (size <= 0) break;
+      cons_write(buffer, size);
+    }
+  } else {
+    cons_write("File not found\n", 15);
+  }
+}
+void cd() {
+  FILE f;
+  printf("Dir: ");
+  if (prompt_file(&f) && (f.attribs & FILE_DIRECTORY)) {
+    pwd.clusterIndex = f.clusterIndex;
+  } else {
+    cons_write("Directory not found\n", 20);
+  }
+}
