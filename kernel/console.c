@@ -123,6 +123,17 @@ void console_putbytes_at(const char *chaine, int32_t taille, uint8_t col, uint8_
   put_cursor(state.col, state.lig);
 }
 
+void console_draw_red_cross() {
+  struct state_t save = state;
+  state.col = REDCROSS_COL;
+  state.lig = REDCROSS_LIG;
+  state.ct = CONSOLE_WHITE;
+  state.cf = CONSOLE_RED;
+  console_putbytes("X", 1);
+  state = save;
+  put_cursor(state.col, state.lig);
+}
+
 void console_set_background_at(uint8_t col, uint8_t lig, uint8_t c) {
   uint16_t* cell = char_addr(col, lig);
   *cell &= 0b1000111111111111;

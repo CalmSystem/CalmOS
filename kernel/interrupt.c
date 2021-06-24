@@ -12,6 +12,7 @@
 
 #include "ps2.h"
 #include "mouse.h"
+#include "boot/processor_structs.h"
 
 void* const IDT = (void*)0x1000;
 /** Mask table for IRQ 0 to 7. Handled with interrupt 32-47 */
@@ -62,8 +63,9 @@ void tic_PIT() {
   const unsigned long seconds = pit_count / CLOCKFREQ;
   char time_str[9]; // space for "HH:MM:SS\0"
   sprintf(time_str, "%02ld:%02ld:%02ld", seconds / (60 * 60), (seconds / 60) % 60, seconds % 60);
-  console_putbytes_at(time_str, 8, CONSOLE_COL-8, 0);
+  console_putbytes_at(time_str, 8, CONSOLE_COL-8, 1);
 
+  console_draw_red_cross();
   check_buzzer();
 
   if (pit_count % (CLOCKFREQ / SCHEDFREQ) == 0) {
@@ -87,6 +89,9 @@ void mouse_callback(ps2_mouse_t m_state) {
   console_set_background_at(mouse_previous.x, mouse_previous.y, CONSOLE_BLACK);
   console_set_background_at(m_state.x, m_state.y, CONSOLE_GREEN);
   mouse_previous = m_state;
+  if (m_state.left_button_pressed && m_state.x == 79 && m_state.y == 0) {
+    reboot();
+  }
 }
 
 void setup_interrupt_handlers() {
