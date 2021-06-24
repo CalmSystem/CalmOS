@@ -24,7 +24,6 @@ void kernel_start(void)
   // Splash screen
   printf(CALMOS_LOGO);
 
-  // call_debugger(); useless with qemu -s -S
   setup_scheduler();
   setup_interrupt_handlers();
   setup_filesystem();

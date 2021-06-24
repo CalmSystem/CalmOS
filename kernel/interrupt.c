@@ -10,14 +10,20 @@
 #include "beep.h"
 #include "interrupt.h"
 
+#include "ps2.h"
+#include "mouse.h"
+#include "boot/processor_structs.h"
+
 void* const IDT = (void*)0x1000;
 /** Mask table for IRQ 0 to 7. Handled with interrupt 32-47 */
 const uint32_t IRQ_LOW_MASK_DATA_PORT = 0x21;
-// IRQ_HIGH_MASK_DATA_PORT 0xA1
+/** Mask table for IRQ 8 to 15. */
+const uint32_t IRQ_HIGH_MASK_DATA_PORT = 0xA1;
 
 extern void IT_PIT_handler();
 extern void IT_KEYBOARD_handler();
 extern void IT_FLOPPY_handler();
+extern void IT_MOUSE_handler();
 extern void IT_USR_handler();
 
 /** Writes handler on IDT */
@@ -31,10 +37,17 @@ void set_handler(unsigned int nidt, void (*handler)(void), uint8_t ring_level) {
 
 /** Writes mask for IRQ (only between 0 and 7) */
 void set_mask(uint8_t irq, bool masked) {
-  uint8_t masks = inb(IRQ_LOW_MASK_DATA_PORT);
+  uint32_t dataport = 0;
+  if(irq >= 8) {
+    dataport = IRQ_HIGH_MASK_DATA_PORT;
+    irq -= 8;
+  } else {
+    dataport = IRQ_LOW_MASK_DATA_PORT;
+  }
+  uint8_t masks = inb(dataport);
   // Set bit irq to masked
   masks = (masks & ~(1UL << irq)) | (masked << irq);
-  outb(masks, IRQ_LOW_MASK_DATA_PORT);
+  outb(masks, dataport);
 }
 
 /** Writes programmable clock interval */
@@ -51,8 +64,9 @@ void tic_PIT() {
   const unsigned long seconds = pit_count / CLOCKFREQ;
   char time_str[9]; // space for "HH:MM:SS\0"
   sprintf(time_str, "%02ld:%02ld:%02ld", seconds / (60 * 60), (seconds / 60) % 60, seconds % 60);
-  console_putbytes_at(time_str, 8, CONSOLE_COL-8, 0);
+  console_putbytes_at(time_str, 8, CONSOLE_COL-10, 0);
 
+  console_draw_red_cross();
   check_buzzer();
 
   if (pit_count % (CLOCKFREQ / SCHEDFREQ) == 0) {
@@ -72,18 +86,47 @@ void clock_settings(unsigned long* quartz, unsigned long* ticks) {
 }
 unsigned long current_clock() { return pit_count; }
 
+void mouse_callback(ps2_mouse_t m_state) {
+  console_set_background_at(mouse_previous.x, mouse_previous.y, CONSOLE_BLACK);
+  console_set_background_at(m_state.x, m_state.y, CONSOLE_GREEN);
+  if (m_state.left_button_pressed && m_state.x == 79 && m_state.y == 0) {
+    reboot();
+  } else if (m_state.left_button_pressed) {
+    console_set_background_at(m_state.x, m_state.y, CONSOLE_BLUE);
+    return;
+  } else if (m_state.right_button_pressed) {
+    console_set_background_at(m_state.x, m_state.y, CONSOLE_RED);
+    return;
+  } else if (m_state.middle_button_pressed) {
+    console_set_background_at(m_state.x, m_state.y, CONSOLE_GREEN);
+    return;
+  }
+  mouse_previous = m_state;
+}
+
 void setup_interrupt_handlers() {
   if (!(CLOCKFREQ > SCHEDFREQ && CLOCKFREQ % SCHEDFREQ == 0)) panic("Invalid clock constants");
   set_handler(32, IT_PIT_handler, 0);
-  set_pit();
-  set_mask(0, false);
-
-  init_keyboard_buffer();
   set_handler(33, IT_KEYBOARD_handler, 0);
-  set_mask(1, false);
-
   set_handler(38, IT_FLOPPY_handler, 0);
+
+  init_ps2();
+  set_handler(44, IT_MOUSE_handler, 0);
+
+  set_pit();
+
+  set_mask(0, false);
+  set_mask(1, false);
   set_mask(6, false);
 
+  // Masking IRQ2 will cause the Slave PIC to stop raising IRQs.
+  // https://wiki.osdev.org/8259_PIC
+  // SO: unmask !
+  set_mask(2, false);
+  set_mask(12, false);
+
   set_handler(49, IT_USR_handler, 3);
+
+  init_keyboard_buffer();
+  mouse_set_callback(mouse_callback);
 }

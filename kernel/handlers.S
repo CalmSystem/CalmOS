@@ -80,6 +80,28 @@ IT_HANDLER(PIT, tic_PIT)
 IT_HANDLER(KEYBOARD, keyboard_IT)
 IT_HANDLER(FLOPPY, floppy_IT)
 
+# Handles mouse interrupts
+    .globl IT_MOUSE_handler
+IT_MOUSE_handler:
+# save important registers
+	pushl %esi
+	pushl %edi
+	pushl %edx
+	pushl %ecx
+	pushl %ebx
+	pushl %eax
+# call C function dealing with interrupt
+    call mouse_IT
+# restore important registers
+	popl %eax
+	popl %ebx
+	popl %ecx
+	popl %edx
+	popl %edi
+	popl %esi
+# end interrupt handler
+    iret
+
 # Handles user system calls
     .globl IT_USR_handler
 IT_USR_handler:
