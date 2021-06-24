@@ -10,4 +10,7 @@ void console_set_foreground(uint8_t c);
 /** Defines current background color */
 void console_set_background(uint8_t c);
 
+/** Set the background color to c at a specific col and lig */
+void console_set_background_at(uint8_t col, uint8_t lig, uint8_t c);
+
 #endif /*CONSOLE_H_*/

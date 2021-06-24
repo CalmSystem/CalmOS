@@ -74,7 +74,6 @@ void tic_PIT() {
 void keyboard_IT(){
   outb(0x20, 0x20);
   char c = inb(0x60);
-  // printf("- %c -", inb(0x64));
   do_scancode((int)c);
 }
 
@@ -84,14 +83,18 @@ void clock_settings(unsigned long* quartz, unsigned long* ticks) {
 }
 unsigned long current_clock() { return pit_count; }
 
+void mouse_callback(ps2_mouse_t m_state) {
+  console_set_background_at(mouse_previous.x, mouse_previous.y, CONSOLE_BLACK);
+  console_set_background_at(m_state.x, m_state.y, CONSOLE_GREEN);
+  mouse_previous = m_state;
+}
+
 void setup_interrupt_handlers() {
   if (!(CLOCKFREQ > SCHEDFREQ && CLOCKFREQ % SCHEDFREQ == 0)) panic("Invalid clock constants");
   set_handler(32, IT_PIT_handler, 0);
   set_handler(33, IT_KEYBOARD_handler, 0);
 
-  // mouse_init();
   init_ps2();
-
   set_handler(44, IT_MOUSE_handler, 0);
 
   set_pit();
@@ -108,4 +111,5 @@ void setup_interrupt_handlers() {
   set_handler(49, IT_USR_handler, 3);
 
   init_keyboard_buffer();
+  mouse_set_callback(mouse_callback);
 }
