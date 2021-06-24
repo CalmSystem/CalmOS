@@ -53,6 +53,9 @@ struct dir_entry_t {
   uint32_t fileSize;
 } PACKED;
 
+/** Position of char in dir_entry_t */
+const uint8_t lfn_chars[] = {1, 3, 5, 7, 9, 14, 16, 18, 20, 22, 24, 28, 30};
+
 enum fat_attr {
   FAT_READ_ONLY = 0x01,
   FAT_HIDDEN = 0x02,
@@ -339,6 +342,39 @@ int fat_read_data(struct disk_t *d, uint32_t clusterIndex, void* data, uint32_t 
   }
   return skip > size ? 0 : size - skip;
 }
+int fat_write_data(struct disk_t *d, uint32_t clusterIndex, const void* data, uint32_t len, size_t skip) {
+  assert(clusterIndex != 0);
+  WITH_BPB(bpb, d);
+  uint32_t bytesPerCluster = bpb->sectorsPerCluster * bpb->bytesPerSector;
+
+  // Skip empty files
+  if (len == 0) return 0;
+
+  uint16_t endOfChainValue = fat_get_cluster_value(d, 1);
+  uint32_t size = 0;
+  uint8_t *p = (uint8_t *)data;
+
+  // Copy data one cluster at a time.
+  while (clusterIndex != endOfChainValue && (skip > size || len > size - skip)) {
+    if (size + bytesPerCluster > skip) {
+      // Determine amount of data to copy
+      uint32_t start = size > skip ? 0 : skip - size;
+      uint32_t target = skip > size ? 0 : size - skip;
+      uint32_t count = len - size - start;
+      if (count > bytesPerCluster) count = bytesPerCluster;
+
+      // Transfer bytes into image at cluster location
+      uint32_t offset = fat_get_cluster_addr(d, clusterIndex);
+      disk_write(d, offset+start, p + target, count);
+
+      size += count;
+    } else {
+      size += bytesPerCluster;
+    }
+    clusterIndex = fat_get_cluster_value(d, clusterIndex);
+  }
+  return skip > size ? 0 : size - skip;
+}
 
 addr_t fat_add_file(struct disk_t* d, uint32_t clusterIndex, uint32_t fatIndex, const char *path, const void *data, uint32_t size) {
   // Find Directory Entry
@@ -375,8 +411,6 @@ void fat_fs_file_name(struct filesystem_t *self, const FILE *f, char *name, size
   size_t cur = 0;
   const struct dir_entry_t *entry = disk_view(self->disk, f->entryAddr, NULL);
 
-  //TODO: long name
-
   size_t name_len = (sizeof((struct dir_entry_t){0}).name);
   while (name_len && entry->name[name_len-1] == ' ') { name_len--; }
 
@@ -394,7 +428,28 @@ void fat_fs_file_name(struct filesystem_t *self, const FILE *f, char *name, size
     memcpy(&name[ext_start], entry->ext, ext_len);
     cur += ext_len;
   }
-  name[cur] = '\0';  
+  name[cur] = '\0';
+
+  addr_t lfnAddr = f->entryAddr;
+  do {
+    lfnAddr -= sizeof(struct dir_entry_t);
+    entry = disk_view(self->disk, lfnAddr, NULL);
+  } while (entry->attribs == FAT_LFN);
+  lfnAddr += sizeof(struct dir_entry_t);
+
+  // No long file name
+  if (lfnAddr == f->entryAddr) return;
+
+  cur = 0;
+  while (lfnAddr < f->entryAddr) {
+    entry = disk_view(self->disk, lfnAddr, NULL);
+    for (uint8_t i = 0; i < sizeof(lfn_chars)/sizeof(lfn_chars[0]) && cur < len; i++) {
+      name[cur] = *((char *)entry + lfn_chars[i]);
+      cur++;
+    }
+    lfnAddr += sizeof(struct dir_entry_t);
+  }
+  name[cur] = '\0';
 
   return;
 }
@@ -434,9 +489,8 @@ int fat_fs_read(struct filesystem_t *self, void *dst, const FILE *f, size_t offs
   return fat_read_data(self->disk, f->clusterIndex, dst, len, offset);
 }
 int fat_fs_write(struct filesystem_t *self, const FILE *f, size_t offset, const void *src, size_t len) {
-  (void)self; (void)f; (void)offset; (void)src; (void)len;
-  //TODO:
-  return -1;
+  if (len > f->size - offset) len = f->size - offset;
+  return fat_write_data(self->disk, f->clusterIndex, src, len, offset);
 }
 
 void load_fat16(struct filesystem_t *fs) {

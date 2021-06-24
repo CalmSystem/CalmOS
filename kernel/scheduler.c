@@ -239,7 +239,6 @@ int waitpid(int pid, int* retvalp)
     if (processes[pid].state == PS_ZOMBIE) child = &processes[pid];
   } else {
     bool has_child = false;
-    // MAYBE: add child list
     for (int i = 0; child == NULL && i < NBPROC; i++) {
       if (processes[i].parent == ps->pid && processes[i].state > PS_DEAD) {
         has_child = true;
@@ -292,7 +291,6 @@ int stop(int pid, int retval) {
   ALIVE_PID(pid)
   struct process_t* const ps = &processes[pid];
   // Unbind children
-  //MAYBE: use child list
   for (int i = 0; i < NBPROC; i++) {
     struct process_t* const child = &processes[i];
     if (child->parent != ps->pid) continue;
