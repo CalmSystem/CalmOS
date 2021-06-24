@@ -534,7 +534,7 @@ int do_cached(dir dir, uint32_t addr, uint32_t* offset, uint32_t* size) {
   // Already in floppy_dmabuf
   if (dir == dir_read && cyl == floppy_dmacyl) return 0;
   int ret = do_track(FLOPPY_BASE, cyl, dir);
-  if (ret) floppy_dmacyl = cyl;
+  if (ret >= 0) floppy_dmacyl = cyl;
   return ret;
 }
 
@@ -595,5 +595,36 @@ bool has_floppy() {
            drive_types[FLOPPY_144_CODE], drive_types[drive0]);
     return false;
   }
+  return true;
+}
+
+void floppy_disk_write(void *arg, uint32_t addr, const void *src, size_t n) {
+  (void)arg;
+  int res;
+  (void)res;
+  res = floppy_write(addr, src, n);
+  assert(res >= 0);
+}
+void floppy_disk_read(void *arg, void *dst, uint32_t addr, size_t n) {
+  (void)arg;
+  int res;
+  (void)res;
+  res = floppy_read(dst, addr, n);
+  assert(res >= 0);
+}
+const void *floppy_disk_view(void *arg, uint32_t addr, uint32_t *size) {
+  (void)arg;
+  const void *res = floppy_read_view(addr, size);
+  assert(res);
+  return res;
+}
+bool load_floppy(struct disk_t *d) {
+  if (!has_floppy())
+    return false;
+
+  d->arg = NULL;
+  d->read = floppy_disk_read;
+  d->write = floppy_disk_write;
+  d->view = floppy_disk_view;
   return true;
 }
