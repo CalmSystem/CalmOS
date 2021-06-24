@@ -46,11 +46,13 @@ unsigned long cons_readline(char *string, unsigned long length) {
       if (msg_len > length) {
         buf_save[buf_idx] = msg;
         buf_idx++;
-      } else if (msg_len != 0) {
+      } else if (msg_len > 0) {
         string--;
         *string = '\0';
       }
-      msg_len--;
+      if(msg_len > 0){
+        msg_len--;
+      }
     } else if (msg_len >= length) {
       buf_save[buf_idx] = msg;
       buf_idx++;

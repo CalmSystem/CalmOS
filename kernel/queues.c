@@ -153,7 +153,7 @@ int pcount(int fid, int *count) {
 }
 
 int pcreate(int count) {
-  if (count <= 0 || count > 1000000000) return -3;
+  if (count <= 0 || count > 10000) return -3;
   for (int fid = 0; fid < NBQUEUE; fid++) {
     struct queue_t *const q = &queues[fid];
     if (!is_queue_free(q)) continue;

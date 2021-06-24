@@ -32,5 +32,7 @@ void cd(const char*);
 void ls(const char*);
 /** Print file content */
 void cat(const char*);
+/** Play a music beep file */
+void play(const char *);
 
 #endif

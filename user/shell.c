@@ -3,6 +3,8 @@
 #include "logo.h"
 #include "string.h"
 #include "shell.h"
+#include "mem.h"
+#include "play.h"
 
 int test_proc(void *arg);
 
@@ -32,6 +34,7 @@ static struct {
   {"cd", cd, "Change current directory"},
   {"ls", ls, "List files in directory"},
   {"cat", cat, "Print file content"},
+  {"play", play, "Play a music beep file"},
   {0, 0, 0}
 };
 
@@ -197,5 +200,19 @@ void cd(const char* path) {
     pwd.clusterIndex = f.clusterIndex;
   } else {
     cons_write("Directory not found\n", 20);
+  }
+}
+
+void play(const char* path) {
+  FILE f;
+  if (path && *path != '\0' && find_file(&f, path) && !(f.attribs & FILE_DIRECTORY)) {
+    char* buffer = mem_alloc(f.size);
+    fs_read(buffer, &f, 0, f.size);
+    for (char* eol = buffer-1; eol && eol < buffer + f.size; eol = strchr(eol+1, '\n')) {
+      decode_music_line(eol+1);
+    }
+    mem_free(buffer, f.size);
+  } else {
+    cons_write("File not found\n", 15);
   }
 }
