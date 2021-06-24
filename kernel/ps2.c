@@ -20,7 +20,7 @@ bool all_controllers[] = {true, true};
  */
 
 void init_ps2() {
-    printf("[ps2] Initializing\n");
+    //printf("[ps2] Initializing\n");
 
     bool dual_channel = true;
 
@@ -36,7 +36,7 @@ void init_ps2() {
     ps2_config |= 2;
 
     // if (ps2_config & PS2_CFG_MUST_BE_ZERO) {
-    //     printf("[ps2] Invalid bit set in configuration byte.\n");
+    //     //printf("[ps2] Invalid bit set in configuration byte.\n");
     // }
 
     // ps2_config &= ~(PS2_CFG_FIRST_PORT | PS2_CFG_SECOND_PORT | PS2_CFG_TRANSLATION);
@@ -48,7 +48,7 @@ void init_ps2() {
     ps2_write(PS2_SELF_TEST, PS2_CMD_PORT);
 
     if(ps2_read(PS2_DATA_PORT) != PS2_SELF_TEST_OK) {
-        printf("[ps2] Controller failed self-test\n");
+        //printf("[ps2] Controller failed self-test\n");
         // all_controllers[0] = false;
         all_controllers[1] = false;
         return;
@@ -62,7 +62,7 @@ void init_ps2() {
     ps2_config = ps2_read(PS2_DATA_PORT);
 
     if (ps2_config & PS2_CFG_SECOND_CLOCK) {
-        printf("[ps2] Only one PS/2 controller\n");
+        //printf("[ps2] Only one PS/2 controller\n");
         dual_channel = false;
         all_controllers[1] = false;
     } else {
@@ -72,7 +72,7 @@ void init_ps2() {
     // ps2_write(PS2_TEST_FIRST, PS2_CMD_PORT);
 
     // if (ps2_read(PS2_DATA_PORT) != PS2_TEST_OK) {
-    //     printf("[ps2] First PS/2 port failed testing\n");
+    //     //printf("[ps2] First PS/2 port failed testing\n");
     //     all_controllers[0] = false;
     // }
 
@@ -80,7 +80,7 @@ void init_ps2() {
         ps2_write(PS2_TEST_SECOND, PS2_CMD_PORT);
 
         if (ps2_read(PS2_DATA_PORT) != PS2_TEST_OK) {
-            printf("[ps2] Second PS/2 port failed testing\n");
+            //printf("[ps2] Second PS/2 port failed testing\n");
             all_controllers[1] = false;
         }
     }
@@ -93,7 +93,7 @@ void init_ps2() {
 
         ps2_enable_port(i, true);
 
-        printf("[ps2] Resetting device %d\n", i);
+        //printf("[ps2] Resetting device %d\n", i);
         ps2_write_device(i, PS2_DEV_RESET);
         ps2_wait_ms(500);
         ps2_expect_ack();
@@ -102,7 +102,7 @@ void init_ps2() {
         unsigned char ret = ps2_read(PS2_DATA_PORT);
 
         // if(i == 0 && ret != PS2_DEV_RESET_ACK) {
-        //     printf("[ps2] Keyboard failed to ack rest, sent %x\n", ret);
+        //     //printf("[ps2] Keyboard failed to ack rest, sent %x\n", ret);
         //     goto error;
         // } else
         if (i == 1) {
@@ -112,7 +112,7 @@ void init_ps2() {
                ((ret == PS2_DEV_ACK || ret == 0x00) && ret2 == PS2_DEV_RESET_ACK)) {
                    // empty
             } else {
-                printf("[ps2] Mice failed to ack reset, sent %x, %x\n", ret, ret2);
+                //printf("[ps2] Mice failed to ack reset, sent %x, %x\n", ret, ret2);
                 goto error;
             }
         }
@@ -142,13 +142,13 @@ void init_ps2() {
             {
                 case PS2_KEYBOARD:
                 case PS2_KEYBOARD_TRANSLATED:
-                    printf("[ps2] Keyboard\n");
+                    //printf("[ps2] Keyboard\n");
                     // init_kbd();
                     break;
                 case PS2_MOUSE:
                 case PS2_MOUSE_SCROLL_WHEEL:
                 case PS2_MOUSE_FIVE_BUTTONS:
-                    printf("[ps2] Device %d is: Mouse\n", i);
+                    //printf("[ps2] Device %d is: Mouse\n", i);
                     init_mouse(i);
                     break;
                 default:
@@ -166,7 +166,7 @@ void init_ps2() {
     ps2_write(PS2_WRITE_CONFIG, PS2_CMD_PORT);
     ps2_write(ps2_config, PS2_DATA_PORT);
 
-    printf("[ps2] Init ok\n");
+    //printf("[ps2] Init ok\n");
 
 }
 
@@ -180,7 +180,7 @@ void ps2_wait_ms(int ms) {
 bool ps2_expect_ack() {
     unsigned char ret = ps2_read(PS2_DATA_PORT);
     if (ret != PS2_DEV_ACK) {
-        printf("[ps2] Device failed to acknowledge command, sent %x\n", ret);
+        //printf("[ps2] Device failed to acknowledge command, sent %x\n", ret);
         return false;
     }
     return true;
@@ -227,7 +227,7 @@ unsigned char ps2_read(unsigned short port) {
     if(ps2_wait_and_read()) {
         return inb(port);
     }
-    printf("[ps2] Error reading\n");
+    //printf("[ps2] Error reading\n");
     return -1;
 }
 
@@ -236,7 +236,7 @@ bool ps2_write(unsigned char value, unsigned short port) {
         outb(value, port);
         return true;
     }
-    printf("[ps2] Error writing\n");
+    //printf("[ps2] Error writing\n");
     return false;
 }
 
@@ -254,7 +254,7 @@ int ps2_identity_bytes_to_type(int first, int second) {
 }
 
 int ps2_identity_device(int i) {
-    printf("[ps2] Identifying device %d\n", i);
+    //printf("[ps2] Identifying device %d\n", i);
     ps2_write_device(i, PS2_DEV_DISABLE_SCAN);
     ps2_expect_ack();
     ps2_write_device(i, PS2_DEV_IDENTIFY);

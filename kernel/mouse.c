@@ -14,21 +14,21 @@ ps2_mouse_callback_t callback;
 
 
 void init_mouse(int dev) {
-  printf("[mouse] Mouse start init\n");
+  //printf("[mouse] Mouse start init\n");
 
   device = dev;
 
   mouse_enable_scroll_wheel();
   mouse_enable_five_buttons();
 
-  mouse_set_sample_rate(80);
+  mouse_set_sample_rate(164);
   mouse_set_resolution(0x00);
   mouse_set_scaling(false);
 
   ps2_write_device(device, PS2_DEV_ENABLE_SCAN);
   ps2_expect_ack();
 
-  printf("[mouse] Mouse end init\n");
+  //printf("[mouse] Mouse end init\n");
 }
 
 void mouse_set_sample_rate(unsigned char rate) {
@@ -60,9 +60,9 @@ void mouse_enable_scroll_wheel() {
 
     if (type == PS2_MOUSE_SCROLL_WHEEL) {
         bytes_per_packet = 4;
-        printf("[mouse] Enable scroll wheel.\n");
+        //printf("[mouse] Enable scroll wheel.\n");
     } else {
-        printf("[mouse] Unable to enable scroll wheel.\n");
+        //printf("[mouse] Unable to enable scroll wheel.\n");
     }
 }
 
@@ -78,9 +78,9 @@ void mouse_enable_five_buttons() {
     int type = ps2_identity_device(device);
 
     if (type != PS2_MOUSE_FIVE_BUTTONS) {
-        printf("[mouse] Mouse has fewer than five buttons\n");
+        //printf("[mouse] Mouse has fewer than five buttons\n");
     } else {
-        printf("[mouse] Five buttons enabled\n");
+        //printf("[mouse] Five buttons enabled\n");
     }
 }
 
@@ -150,8 +150,8 @@ void mouse_handle_packet() {
   mouse_state.right_button_pressed = flags & MOUSE_RIGHT;
   mouse_state.middle_button_pressed = flags & MOUSE_MIDDLE;
 
-  mouse_state.x += delta_x / 5;
-  mouse_state.y -= delta_y / 3;
+  mouse_state.x += delta_x / 7;
+  mouse_state.y -= delta_y / 6;
 
   mouse_state.x = (mouse_state.x >= CONSOLE_COL - 1) ? CONSOLE_COL - 1 : mouse_state.x;
   mouse_state.x = (mouse_state.x <= 0)  ? 0  : mouse_state.x;

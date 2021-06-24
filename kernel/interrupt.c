@@ -88,10 +88,19 @@ unsigned long current_clock() { return pit_count; }
 void mouse_callback(ps2_mouse_t m_state) {
   console_set_background_at(mouse_previous.x, mouse_previous.y, CONSOLE_BLACK);
   console_set_background_at(m_state.x, m_state.y, CONSOLE_GREEN);
-  mouse_previous = m_state;
   if (m_state.left_button_pressed && m_state.x == 79 && m_state.y == 0) {
     reboot();
+  } else if (m_state.left_button_pressed) {
+    console_set_background_at(m_state.x, m_state.y, CONSOLE_BLUE);
+    return;
+  } else if (m_state.right_button_pressed) {
+    console_set_background_at(m_state.x, m_state.y, CONSOLE_RED);
+    return;
+  } else if (m_state.middle_button_pressed) {
+    console_set_background_at(m_state.x, m_state.y, CONSOLE_GREEN);
+    return;
   }
+  mouse_previous = m_state;
 }
 
 void setup_interrupt_handlers() {
