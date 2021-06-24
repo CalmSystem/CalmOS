@@ -6,3 +6,5 @@
 #else
 # define NULL ((void *)0)
 #endif
+
+#define offsetof(t,d) __builtin_offsetof(t, d)
