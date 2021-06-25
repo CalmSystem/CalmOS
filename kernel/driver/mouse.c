@@ -21,8 +21,8 @@ void init_mouse(int dev) {
   mouse_enable_scroll_wheel();
   mouse_enable_five_buttons();
 
-  mouse_set_sample_rate(164);
-  mouse_set_resolution(0x00);
+  mouse_set_sample_rate(100);
+  mouse_set_resolution(0x03);
   mouse_set_scaling(false);
 
   ps2_write_device(device, PS2_DEV_ENABLE_SCAN);
@@ -150,8 +150,8 @@ void mouse_handle_packet() {
   mouse_state.right_button_pressed = flags & MOUSE_RIGHT;
   mouse_state.middle_button_pressed = flags & MOUSE_MIDDLE;
 
-  mouse_state.x += delta_x / 7;
-  mouse_state.y -= delta_y / 6;
+  mouse_state.x += delta_x / 10;
+  mouse_state.y -= delta_y / 8;
 
   mouse_state.x = (mouse_state.x >= CONSOLE_COL - 1) ? CONSOLE_COL - 1 : mouse_state.x;
   mouse_state.x = (mouse_state.x <= 0)  ? 0  : mouse_state.x;

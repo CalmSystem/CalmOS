@@ -99,13 +99,16 @@ uint32_t fat_get_cluster_count(struct disk_t* d) {
 
 addr_t fat_get_root_table_addr(struct disk_t *d) {
   WITH_BPB(bpb, d);
-  return (bpb->reservedSectorCount + bpb->fatCount * bpb->sectorsPerFat) *
+  return (bpb->reservedSectorCount + 0 * bpb->sectorsPerFat) *
                     bpb->bytesPerSector;
 }
 
 addr_t fat_get_cluster_addr(struct disk_t *d, uint32_t clusterIndex) {
-  uint32_t fatOffset = fat_get_root_table_addr(d);
   WITH_BPB(bpb, d);
+  uint32_t fatOffset =
+      (bpb->reservedSectorCount + bpb->fatCount * bpb->sectorsPerFat) *
+      bpb->bytesPerSector;
+  if (clusterIndex < 2) return fatOffset;
   return fatOffset + bpb->rootEntryCount * sizeof(struct dir_entry_t) +
          (clusterIndex - 2) * (bpb->sectorsPerCluster * bpb->bytesPerSector);
 }
@@ -172,9 +175,7 @@ addr_t fat_find_entry(struct disk_t *d, uint32_t clusterIndex, bool free, int32_
   WITH_BPB(bpb, d);
   uint16_t rootEntryCount = bpb->rootEntryCount;
 
-  uint32_t start = clusterIndex == 0 ?
-    fat_get_root_table_addr(d) :
-    fat_get_cluster_addr(d, clusterIndex);
+  uint32_t start = fat_get_cluster_addr(d, clusterIndex);
 
   for (int32_t offset = skip; offset < rootEntryCount; offset++) {
     struct dir_entry_t *entry = (struct dir_entry_t *)disk_view( d,
@@ -318,29 +319,26 @@ int fat_read_data(struct disk_t *d, uint32_t clusterIndex, void* data, uint32_t 
   if (len == 0) return 0;
 
   uint16_t endOfChainValue = fat_get_cluster_value(d, 1);
-  uint32_t size = 0;
+  uint32_t read_size = 0;
   uint8_t *p = (uint8_t *)data;
 
   // Copy data one cluster at a time.
-  while (clusterIndex != endOfChainValue && (skip > size || len > size - skip)) {
-    if (size + bytesPerCluster > skip) {
+  while (clusterIndex != endOfChainValue && len > (uint32_t)(p-(uint8_t*)data)) {
+    if (read_size + bytesPerCluster > skip) {
       // Determine amount of data to copy
-      uint32_t start = size > skip ? 0 : skip - size;
-      uint32_t target = skip > size ? 0 : size - skip;
-      uint32_t count = len - size - start;
+      uint32_t start = read_size > skip ? 0 : skip - read_size;
+      uint32_t count = len - (p-(uint8_t*)data);
       if (count > bytesPerCluster) count = bytesPerCluster;
 
       // Transfer bytes into image at cluster location
       uint32_t offset = fat_get_cluster_addr(d, clusterIndex);
-      disk_read(d, p + target, offset+start, count);
-
-      size += count;
-    } else {
-      size += bytesPerCluster;
+      disk_read(d, p, offset+start, count);
+      p += count;
     }
+    read_size += bytesPerCluster;
     clusterIndex = fat_get_cluster_value(d, clusterIndex);
   }
-  return skip > size ? 0 : size - skip;
+  return p - (uint8_t *)data;
 }
 int fat_write_data(struct disk_t *d, uint32_t clusterIndex, const void* data, uint32_t len, size_t skip) {
   assert(clusterIndex != 0);
@@ -351,29 +349,26 @@ int fat_write_data(struct disk_t *d, uint32_t clusterIndex, const void* data, ui
   if (len == 0) return 0;
 
   uint16_t endOfChainValue = fat_get_cluster_value(d, 1);
-  uint32_t size = 0;
+  uint32_t read_size = 0;
   uint8_t *p = (uint8_t *)data;
 
   // Copy data one cluster at a time.
-  while (clusterIndex != endOfChainValue && (skip > size || len > size - skip)) {
-    if (size + bytesPerCluster > skip) {
+  while (clusterIndex != endOfChainValue && len > (uint32_t)(p-(uint8_t*)data)) {
+    if (read_size + bytesPerCluster > skip) {
       // Determine amount of data to copy
-      uint32_t start = size > skip ? 0 : skip - size;
-      uint32_t target = skip > size ? 0 : size - skip;
-      uint32_t count = len - size - start;
+      uint32_t start = read_size > skip ? 0 : skip - read_size;
+      uint32_t count = len - (p-(uint8_t*)data);
       if (count > bytesPerCluster) count = bytesPerCluster;
 
       // Transfer bytes into image at cluster location
       uint32_t offset = fat_get_cluster_addr(d, clusterIndex);
-      disk_write(d, offset+start, p + target, count);
-
-      size += count;
-    } else {
-      size += bytesPerCluster;
+      disk_write(d, offset+start, p, count);
+      p += count;
     }
+    read_size += bytesPerCluster;
     clusterIndex = fat_get_cluster_value(d, clusterIndex);
   }
-  return skip > size ? 0 : size - skip;
+  return p - (uint8_t *)data;
 }
 
 addr_t fat_add_file(struct disk_t* d, uint32_t clusterIndex, uint32_t fatIndex, const char *path, const void *data, uint32_t size) {
@@ -430,26 +425,20 @@ void fat_fs_file_name(struct filesystem_t *self, const FILE *f, char *name, size
   }
   name[cur] = '\0';
 
+  // Long file name
+  cur = 0;
   addr_t lfnAddr = f->entryAddr;
-  do {
+  while (cur < len) {
     lfnAddr -= sizeof(struct dir_entry_t);
     entry = disk_view(self->disk, lfnAddr, NULL);
-  } while (entry->attribs == FAT_LFN);
-  lfnAddr += sizeof(struct dir_entry_t);
 
-  // No long file name
-  if (lfnAddr == f->entryAddr) return;
-
-  cur = 0;
-  while (lfnAddr < f->entryAddr) {
-    entry = disk_view(self->disk, lfnAddr, NULL);
+    if (entry->attribs != FAT_LFN) break;
     for (uint8_t i = 0; i < sizeof(lfn_chars)/sizeof(lfn_chars[0]) && cur < len; i++) {
       name[cur] = *((char *)entry + lfn_chars[i]);
       cur++;
     }
-    lfnAddr += sizeof(struct dir_entry_t);
   }
-  name[cur] = '\0';
+  if (cur) name[cur] = '\0';
 
   return;
 }

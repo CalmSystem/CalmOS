@@ -183,10 +183,10 @@ void ls(const char* path) {
 void cat(const char* path) {
   FILE f;
   if (path && *path != '\0' && find_file(&f, path) && !(f.attribs & FILE_DIRECTORY)) {
-    char buffer[CONSOLE_COL];
-    for (size_t offset = 0; offset < f.size; offset += CONSOLE_COL) {
-      memset(buffer, 0, CONSOLE_COL);
-      int size = fs_read(buffer, &f, offset, CONSOLE_COL);
+    char buffer[CONSOLE_COL*CONSOLE_LIG];
+    for (size_t offset = 0; offset < f.size; offset += CONSOLE_COL*CONSOLE_LIG) {
+      memset(buffer, 0, CONSOLE_COL*CONSOLE_LIG);
+      int size = fs_read(buffer, &f, offset, CONSOLE_COL*CONSOLE_LIG);
       if (size <= 0) break;
       cons_write(buffer, size);
     }

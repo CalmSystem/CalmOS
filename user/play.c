@@ -78,8 +78,8 @@ void play_note(char *line, unsigned long quartz, unsigned long ticks) {
   }
 
   if (note == -1) {
-    printf("Incorrect file.\n");
-    exit(-1);
+    printf("Incorrect line %.7s .\n", line);
+    return;
   }
 
   switch (figure_code[0]) {
@@ -162,7 +162,7 @@ void decode_music_line(char *line) {
     printf("Non set tempo.\n");
     return;
   }
-  if (line[0] == 'S')
+  if (line[0] == 'P')
     wait_silence(line, quartz, ticks);
   else
     play_note(line, quartz, ticks);
