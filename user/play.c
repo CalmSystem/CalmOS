@@ -113,7 +113,7 @@ void play_note(char *line, unsigned long quartz, unsigned long ticks) {
   }
 
   beep(note, ((60000 / tempo - 100) * figure) / 1000.);
-  wait_clock(current_clock() + ((quartz / ticks) * (tempo / 1000.)));
+  wait_clock(current_clock() + ((quartz / ticks) * .1f));
 }
 
 void wait_silence(char *line, unsigned long quartz, unsigned long ticks) {
@@ -146,7 +146,7 @@ void wait_silence(char *line, unsigned long quartz, unsigned long ticks) {
 
   wait_clock(current_clock() +
              ((quartz / ticks) *
-              ((silent * (60000 / tempo) - (silent - 1) * 100) / 1000.)));
+              ((silent * ((60000 / tempo) - 100)) / 1000.)));
 }
 
 void decode_music_line(char *line) {
@@ -154,7 +154,6 @@ void decode_music_line(char *line) {
   clock_settings(&quartz, &ticks);
 
   if (line[0] == 'T') {
-    // printf("tempo setting\n");
     tempo = strtoul(&line[2], NULL, 10);
     return;
   }
