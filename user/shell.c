@@ -22,6 +22,7 @@ static struct {
   {"help", help, "Display this help screen"},
   {"logo", logo, "Display the logo"},
   {"beep", _beep, "Play a short beep"},
+  {"ping", ping, "Ping in background"},
   {"exit", _exit, "Close this shell"},
   {0, 0, 0}
 };
@@ -216,3 +217,17 @@ void play(const char* path) {
     cons_write("File not found\n", 15);
   }
 }
+
+int ping_proc(void* arg) {
+  (void)arg;
+  const unsigned long seconds = 3;
+  unsigned long quartz;
+  unsigned long ticks;
+  clock_settings(&quartz, &ticks);
+  for (int i = 0; i < 5; i++) {
+    wait_clock(current_clock() + seconds * (quartz / ticks));
+    printf("Ping every %lu seconds\n", seconds);
+  }
+  return 1;
+}
+void ping() { start(ping_proc, 2000, 129, "ping", NULL); }

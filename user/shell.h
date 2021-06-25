@@ -24,6 +24,8 @@ void help();
 void logo();
 /** Play a short beep */
 void _beep();
+/** Ping in background */
+void ping();
 /** Toggle echo of the terminal */
 void echo(const char *);
 /** Change current directory */
